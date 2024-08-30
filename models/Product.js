@@ -18,6 +18,8 @@ const ProductSchema = new mongoose.Schema({
   ],
   stockQuantity: { type: Number, required: true },
   expirationDate: { type: Date }, // Optionnel
+  categories: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }], // Références aux catégories (optionnel)
+  services: [{ type: mongoose.Schema.Types.ObjectId, ref: "Service" }], // References to services
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },

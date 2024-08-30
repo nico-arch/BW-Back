@@ -24,6 +24,15 @@ const exchangeRateRoutes = require("./routes/exchangeRate");
 const returnRoutes = require("./routes/return");
 const balancePaymentRoutes = require("./routes/balancePayment");
 
+//To do Add model Supplier and route
+const supplierRoutes = require("./routes/supplier");
+//To do Add model Order and route
+const orderRoutes = require("./routes/order");
+
+const categoryRoutes = require("./routes/category");
+
+const serviceRoutes = require("./routes/service");
+
 dotenv.config();
 
 const app = express();
@@ -49,6 +58,13 @@ app.use("/api/returns", returnRoutes);
 app.use("/api/creditPayments", creditPaymentRoutes);
 
 app.use("/api/balancePayments", balancePaymentRoutes);
+
+app.use("/api/suppliers", supplierRoutes);
+app.use("/api/orders", orderRoutes);
+
+app.use("/api/categories", categoryRoutes);
+
+app.use("/api/services", serviceRoutes);
 
 //Utils
 const initRolesAndAdmin = require("./utils/initRolesAndAdmin");
