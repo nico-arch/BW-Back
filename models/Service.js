@@ -1,19 +1,22 @@
 const mongoose = require("mongoose");
 
 const ServiceSchema = new mongoose.Schema({
-  name: { type: String, required: true }, // Name of the service
-  description: { type: String }, // Description of the service
-  isCyclic: { type: Boolean, default: false }, // Indicates if the service is cyclic
+  name: { type: String, required: true },
+  description: { type: String },
+  isCyclic: { type: Boolean, default: false }, // Indique si le service est cyclique
   validityPeriod: {
-    amount: { type: Number, required: true }, // Number of time units
+    amount: { type: Number, required: true },
     unit: {
       type: String,
-      enum: ["hour", "day", "month", "year"], // Valid time units
+      enum: ["hour", "day", "month", "year"], // Unité de période de validité
       required: true,
     },
-  }, // Validity period of the service
-  createdAt: { type: Date, default: Date.now }, // Date of service creation
-  updatedAt: { type: Date, default: Date.now }, // Date of last service update
+  },
+  dateOfProcessService: { type: Date }, // Date de traitement spécifique (ex: réservation future)
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 });
 
 module.exports = mongoose.model("Service", ServiceSchema);

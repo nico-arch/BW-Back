@@ -17,6 +17,7 @@ const initRolesAndAdmin = async () => {
       "Cashier",
       "Client",
       "Accountant",
+      "Delivery"
     ];
     const roleIds = []; // Tableau pour stocker les IDs des rôles
 

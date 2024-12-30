@@ -5,13 +5,18 @@ const SaleSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Client",
     required: true,
-  },
-  saleDate: { type: Date, default: Date.now },
+  }, // Référence au client
   saleStatus: {
     type: String,
-    enum: ["quote", "invoice", "credit"],
+    enum: ["pending", "completed", "cancelled"],
+    default: "pending",
+  }, // Statut de la vente
+  currency: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Currency",
     required: true,
-  },
+  }, // Devise utilisée pour la vente
+  exchangeRate: { type: Number, required: true }, // Taux utilisé pour la vente
   products: [
     {
       product: {
@@ -20,36 +25,18 @@ const SaleSchema = new mongoose.Schema({
         required: true,
       },
       quantity: { type: Number, required: true },
-      priceInitial: { type: Number, required: true }, // Prix initial avant remise
-      priceConverted: { type: Number, required: true }, // Prix après conversion et remise
-      initialCurrency: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Currency",
-        required: true,
-      }, // Référence à la devise initiale
-      convertedCurrency: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Currency",
-        required: true,
-      }, // Référence à la devise après conversion
-      productDiscount: { type: Number, default: 0 }, // Remise spécifique au produit (%)
+      price: { type: Number, required: true }, // Prix dans la devise de la vente
     },
   ],
-  totalDiscount: { type: Number, default: 0 }, // Remise globale sur la vente (%)
-  totalAmountInitial: { type: Number, required: true }, // Montant total initial (avant conversion et remise)
-  totalAmountConverted: { type: Number, required: true }, // Montant total après conversion et remise
-  exchangeRateUsed: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "ExchangeRate",
-    required: true,
-  }, // Taux de change utilisé pour la conversion
-  paymentStatus: {
-    type: String,
-    enum: ["paid", "unpaid", "partial"],
-    default: "unpaid",
-  }, // Statut de paiement
+  totalAmount: { type: Number, required: true }, // Montant total de la vente
+  remarks: { type: String }, // Remarques sur la vente
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
 });
 
 module.exports = mongoose.model("Sale", SaleSchema);

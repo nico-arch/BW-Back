@@ -33,6 +33,11 @@ const categoryRoutes = require("./routes/category");
 
 const serviceRoutes = require("./routes/service");
 
+const deliveryRoutes = require("./routes/delivery");
+
+const refundRoutes = require("./routes/refund");
+const refundPaymentRoutes = require("./routes/refundPayment");
+
 dotenv.config();
 
 const app = express();
@@ -65,6 +70,11 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/categories", categoryRoutes);
 
 app.use("/api/services", serviceRoutes);
+
+app.use("/api/deliveries", deliveryRoutes);
+
+app.use("/api/refunds", refundRoutes);
+app.use("api/refundPayments", refundPaymentRoutes);
 
 //Utils
 const initRolesAndAdmin = require("./utils/initRolesAndAdmin");

@@ -1,12 +1,12 @@
 const express = require("express");
 const Service = require("../models/Service");
-const Product = require("../models/Product");
 const authMiddleware = require("../middlewares/authMiddleware");
 const router = express.Router();
 
-// Route to create a new service
+// Route pour créer un service
 router.post("/add", authMiddleware, async (req, res) => {
-  const { name, description, isCyclic, validityPeriod } = req.body;
+  const { name, description, isCyclic, validityPeriod, dateOfProcessService } =
+    req.body;
 
   try {
     const service = new Service({
@@ -14,19 +14,21 @@ router.post("/add", authMiddleware, async (req, res) => {
       description,
       isCyclic,
       validityPeriod,
+      dateOfProcessService,
     });
 
     await service.save();
-    res.json(service);
+    res.json({ msg: "Service created successfully", service });
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");
   }
 });
 
-// Route to update a service
+// Route pour mettre à jour un service
 router.put("/edit/:id", authMiddleware, async (req, res) => {
-  const { name, description, isCyclic, validityPeriod } = req.body;
+  const { name, description, isCyclic, validityPeriod, dateOfProcessService } =
+    req.body;
 
   try {
     let service = await Service.findById(req.params.id);
@@ -38,16 +40,18 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
     service.description = description || service.description;
     service.isCyclic = isCyclic !== undefined ? isCyclic : service.isCyclic;
     service.validityPeriod = validityPeriod || service.validityPeriod;
+    service.dateOfProcessService =
+      dateOfProcessService || service.dateOfProcessService;
 
     await service.save();
-    res.json(service);
+    res.json({ msg: "Service updated successfully", service });
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");
   }
 });
 
-// Route to get all services
+// Route pour afficher tous les services
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const services = await Service.find();
@@ -58,7 +62,7 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// Route to get a specific service by ID
+// Route pour afficher un service spécifique
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const service = await Service.findById(req.params.id);
@@ -72,7 +76,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Route to delete a service
+// Route pour supprimer un service
 router.delete("/delete/:id", authMiddleware, async (req, res) => {
   try {
     let service = await Service.findById(req.params.id);
@@ -87,81 +91,5 @@ router.delete("/delete/:id", authMiddleware, async (req, res) => {
     res.status(500).send("Server error");
   }
 });
-
-// Route to assign a service to a product
-router.put(
-  "/assign-to-product/:productId",
-  authMiddleware,
-  async (req, res) => {
-    const { serviceId } = req.body;
-
-    try {
-      const product = await Product.findById(req.params.productId);
-      if (!product) {
-        return res.status(404).json({ msg: "Product not found" });
-      }
-
-      const service = await Service.findById(serviceId);
-      if (!service) {
-        return res.status(404).json({ msg: "Service not found" });
-      }
-
-      // Check if the service is already assigned
-      if (product.services.includes(serviceId)) {
-        return res
-          .status(400)
-          .json({ msg: "Service already assigned to this product" });
-      }
-
-      // Assign the service to the product
-      product.services.push(serviceId);
-      await product.save();
-
-      res.json({ msg: "Service assigned to product successfully", product });
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).send("Server error");
-    }
-  },
-);
-
-// Route to remove a service from a product
-router.put(
-  "/remove-from-product/:productId",
-  authMiddleware,
-  async (req, res) => {
-    const { serviceId } = req.body;
-
-    try {
-      const product = await Product.findById(req.params.productId);
-      if (!product) {
-        return res.status(404).json({ msg: "Product not found" });
-      }
-
-      const service = await Service.findById(serviceId);
-      if (!service) {
-        return res.status(404).json({ msg: "Service not found" });
-      }
-
-      // Check if the service is assigned
-      if (!product.services.includes(serviceId)) {
-        return res
-          .status(400)
-          .json({ msg: "Service not assigned to this product" });
-      }
-
-      // Remove the service from the product
-      product.services = product.services.filter(
-        (svcId) => svcId.toString() !== serviceId,
-      );
-      await product.save();
-
-      res.json({ msg: "Service removed from product successfully", product });
-    } catch (err) {
-      console.error(err.message);
-      res.status(500).send("Server error");
-    }
-  },
-);
 
 module.exports = router;

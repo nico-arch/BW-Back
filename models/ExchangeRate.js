@@ -1,18 +1,10 @@
 const mongoose = require("mongoose");
 
 const ExchangeRateSchema = new mongoose.Schema({
-  fromCurrency: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Currency",
-    required: true,
-  }, // Devise d'origine
-  toCurrency: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Currency",
-    required: true,
-  }, // Devise de destination
-  rate: { type: Number, required: true }, // Taux de change
-  date: { type: Date, default: Date.now }, // Date du taux de change
+  fromCurrency: { type: String, required: true, enum: ["USD"] },
+  toCurrency: { type: String, required: true, enum: ["HTG"] },
+  rate: { type: Number, required: true }, // Exemple : 1 USD = 132 HTG
+  createdAt: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model("ExchangeRate", ExchangeRateSchema);
