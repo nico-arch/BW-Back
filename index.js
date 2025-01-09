@@ -42,6 +42,10 @@ dotenv.config();
 
 const app = express();
 
+const cors = require('cors');
+app.use(cors());
+
+
 // Middleware pour parser les requêtes JSON
 app.use(express.json());
 
@@ -93,6 +97,7 @@ app.get("/", (req, res) => {
 // Appelez la fonction pour initialiser les rôles et l'admin par défaut
 initRolesAndAdmin();
 
-const PORT = process.env["PORT"] || 5000;
+//const PORT = process.env["PORT"] || 5000;
+const PORT = 5000;
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
