@@ -42,9 +42,15 @@ dotenv.config();
 
 const app = express();
 
-const cors = require('cors');
-app.use(cors());
-
+const cors = require("cors");
+//app.use(cors());
+app.use(
+  cors({
+    origin: "*", // Autorise toutes les origines
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 
 // Middleware pour parser les requêtes JSON
 app.use(express.json());
