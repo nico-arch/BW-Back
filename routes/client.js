@@ -122,7 +122,7 @@ router.delete("/delete/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: "Client not found" });
     }
 
-    await client.remove();
+    await client.deleteOne();
     res.json({ msg: "Client deleted successfully" });
   } catch (err) {
     console.error(err.message);
