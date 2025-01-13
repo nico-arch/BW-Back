@@ -81,7 +81,7 @@ router.delete("/delete/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: "Category not found" });
     }
 
-    await category.remove();
+    await category.deleteOne();
     res.json({ msg: "Category deleted successfully" });
   } catch (err) {
     console.error(err.message);

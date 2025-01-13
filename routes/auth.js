@@ -64,13 +64,13 @@ router.post("/login", async (req, res) => {
     // Vérifier si l'utilisateur existe
     let user = await User.findOne({ email });
     if (!user) {
-      return res.status(400).json({ msg: "Invalid Credentials" });
+      return res.status(400).json({ msg: "Invalid Credentials email" });
     }
 
     // Vérifier le mot de passe
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ msg: "Invalid Credentials" });
+      return res.status(400).json({ msg: "Invalid Credentials pass" });
     }
 
     // Créer un payload pour le JWT

@@ -5,7 +5,7 @@ const ProductSchema = new mongoose.Schema({
   description: { type: String },
   barcode: { type: String },
   priceUSD: { type: Number, required: true }, // Prix en dollars
-  priceHTG: { type: Number, required: true }, // Prix en gourdes (calculé dynamiquement)
+  priceHTG: { type: Number, required: false }, // Prix en gourdes (calculé dynamiquement)
   currency: { type: String, enum: ["USD", "HTG"], default: "USD" }, // Devise principale
   stockQuantity: { type: Number, required: true },
   expirationDate: { type: Date }, // Optionnel

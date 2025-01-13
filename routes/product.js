@@ -68,7 +68,7 @@ router.delete("/delete/:id", authMiddleware, async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ msg: "Product not found" });
 
-    await product.remove();
+    await product.deleteOne();
     res.json({ msg: "Product deleted successfully" });
   } catch (err) {
     console.error(err);
