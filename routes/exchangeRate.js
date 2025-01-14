@@ -33,8 +33,29 @@ router.post("/update-rate", authMiddleware, async (req, res) => {
   }
 });
 
-// Lire le taux actuel
+// Lire le taux actuel ou créer un taux par défaut s'il n'existe pas
 router.get("/current-rate", authMiddleware, async (req, res) => {
+  try {
+    let currency = await Currency.findOne({ currencyCode: "HTG" });
+
+    // Si la devise HTG n'existe pas, la créer avec un taux par défaut
+    if (!currency) {
+      currency = new Currency({
+        currencyCode: "HTG",
+        currencyName: "Gourde",
+        currentExchangeRate: 0, // Taux par défaut
+      });
+      await currency.save();
+    }
+
+    res.json({ currentRate: currency.currentExchangeRate });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server error");
+  }
+});
+// Lire le taux actuel
+/*router.get("/current-rate", authMiddleware, async (req, res) => {
   try {
     const currency = await Currency.findOne({ currencyCode: "HTG" });
     if (!currency) return res.status(404).json({ msg: "Currency not found" });
@@ -44,6 +65,6 @@ router.get("/current-rate", authMiddleware, async (req, res) => {
     console.error(err);
     res.status(500).send("Server error");
   }
-});
+});*/
 
 module.exports = router;
