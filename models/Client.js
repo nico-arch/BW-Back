@@ -16,7 +16,7 @@ const ClientSchema = new mongoose.Schema({
       currency: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Currency",
-        required: true,
+        required: false,
       }, // Référence à la devise
       balanceAmount: { type: Number, default: 0 },
     },
@@ -26,7 +26,7 @@ const ClientSchema = new mongoose.Schema({
       currency: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Currency",
-        required: true,
+        required: false,
       }, // Référence à la devise
       creditLimit: { type: Number, default: 0 },
       currentCredit: { type: Number, default: 0 },

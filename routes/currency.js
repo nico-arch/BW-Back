@@ -46,13 +46,24 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
 // Route pour obtenir toutes les devises
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const currencies = await Currency.find().populate("exchangeRates");
+    const currencies = await Currency.find();
     res.json(currencies);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");
   }
 });
+
+// Route pour obtenir toutes les devises
+/*router.get("/", authMiddleware, async (req, res) => {
+  try {
+    const currencies = await Currency.find().populate("exchangeRates");
+    res.json(currencies);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});*/
 
 // Route pour obtenir une devise par ID
 router.get("/:id", authMiddleware, async (req, res) => {

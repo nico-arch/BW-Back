@@ -27,7 +27,8 @@ router.post("/add", authMiddleware, async (req, res) => {
           .status(400)
           .json({ msg: `Product ${item.productId} not found` });
       }
-      const price = item.price || product.currentPrice;
+
+      const price = item.price || product.priceUSD;
       const quantity = item.quantity;
 
       orderProducts.push({
@@ -54,14 +55,18 @@ router.post("/add", authMiddleware, async (req, res) => {
   }
 });
 
-// Route pour modifier une commande
+// Route pour modifier une commande (uniquement si elle est 'pending')
 router.put("/edit/:id", authMiddleware, async (req, res) => {
-  const { supplierId, products, status } = req.body;
+  const { supplierId, products } = req.body;
 
   try {
     let order = await Order.findById(req.params.id);
     if (!order) {
       return res.status(404).json({ msg: "Order not found" });
+    }
+
+    if (order.status !== "pending") {
+      return res.status(400).json({ msg: "Only pending orders can be edited" });
     }
 
     if (supplierId) {
@@ -83,7 +88,7 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
             .status(400)
             .json({ msg: `Product ${item.productId} not found` });
         }
-        const price = item.price || product.currentPrice;
+        const price = item.price || product.priceUSD;
         const quantity = item.quantity;
 
         orderProducts.push({
@@ -99,13 +104,95 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
       order.totalAmount = totalAmount;
     }
 
-    if (status) {
-      order.status = status;
-    }
-
     order.updatedAt = Date.now();
     await order.save();
     res.json(order);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+// Route pour annuler une commande
+router.put("/cancel/:id", authMiddleware, async (req, res) => {
+  try {
+    let order = await Order.findById(req.params.id).populate(
+      "products.product",
+    );
+    if (!order) {
+      return res.status(404).json({ msg: "Order not found" });
+    }
+
+    if (order.status === "completed") {
+      return res.status(400).json({ msg: "Cannot cancel a completed order" });
+    }
+
+    if (order.status === "canceled") {
+      return res.status(400).json({ msg: "Order is already canceled" });
+    }
+
+    // Réduire le stock si la commande était partiellement traitée
+    if (order.status === "pending") {
+      for (let item of order.products) {
+        const product = await Product.findById(item.product._id);
+        product.stockQuantity -= item.quantity;
+        await product.save();
+      }
+    }
+
+    // Mettre à jour le statut de la commande à 'canceled'
+    order.status = "canceled";
+    order.updatedAt = Date.now();
+
+    await order.save();
+    res.json({ msg: "Order canceled successfully", order });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+// Route pour compléter une commande
+router.put("/complete/:id", authMiddleware, async (req, res) => {
+  const { updatePrices } = req.body; // updatePrices est facultatif
+
+  try {
+    let order = await Order.findById(req.params.id).populate(
+      "products.product",
+    );
+    if (!order) {
+      return res.status(404).json({ msg: "Order not found" });
+    }
+
+    if (order.status === "completed") {
+      return res.status(400).json({ msg: "Order is already completed" });
+    }
+
+    if (order.status === "canceled") {
+      return res.status(400).json({ msg: "Cannot complete a canceled order" });
+    }
+
+    // Mettre à jour le stock pour chaque produit de la commande
+    for (let item of order.products) {
+      const product = await Product.findById(item.product._id);
+
+      // Mise à jour de la quantité en stock
+      product.stockQuantity += item.quantity;
+
+      // Mise à jour du prix si le champ updatePrices est fourni et contient un nouveau prix
+      if (updatePrices && updatePrices[item.product._id]) {
+        product.priceUSD = updatePrices[item.product._id];
+      }
+
+      await product.save();
+    }
+
+    // Mettre à jour le statut de la commande à 'completed'
+    order.status = "completed";
+    order.updatedAt = Date.now();
+
+    await order.save();
+    res.json({ msg: "Order completed successfully", order });
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");
@@ -156,7 +243,7 @@ router.get("/search", authMiddleware, async (req, res) => {
   }
 });
 
-// Route pour supprimer une commande
+// Route pour supprimer une commande (uniquement si elle est 'pending')
 router.delete("/delete/:id", authMiddleware, async (req, res) => {
   try {
     let order = await Order.findById(req.params.id);
@@ -164,92 +251,14 @@ router.delete("/delete/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: "Order not found" });
     }
 
-    await order.remove();
+    if (order.status !== "pending") {
+      return res
+        .status(400)
+        .json({ msg: "Only pending orders can be deleted" });
+    }
+
+    await order.deleteOne();
     res.json({ msg: "Order deleted successfully" });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
-  }
-});
-
-// Route pour annuler une commande
-router.put("/cancel/:id", authMiddleware, async (req, res) => {
-  try {
-    let order = await Order.findById(req.params.id);
-    if (!order) {
-      return res.status(404).json({ msg: "Order not found" });
-    }
-
-    if (order.status === "canceled") {
-      return res.status(400).json({ msg: "Order is already canceled" });
-    }
-
-    // Mettre à jour le statut de la commande à 'canceled'
-    order.status = "canceled";
-    order.updatedAt = Date.now();
-
-    await order.save();
-    res.json({ msg: "Order canceled successfully", order });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
-  }
-});
-
-// Route pour compléter une commande
-//Example de updated price
-/*
-PUT /api/orders/complete/60c72b2f5f1b2c0015d28a49
-Content-Type: application/json
-
-{
-  "updatePrices": {
-    "60c72b2f5f1b2c0015d28a50": 100.0,
-    "60c72b2f5f1b2c0015d28a51": 200.0
-  }
-}
-
-*/
-router.put("/complete/:id", authMiddleware, async (req, res) => {
-  const { updatePrices } = req.body; // updatePrices est facultatif
-
-  try {
-    let order = await Order.findById(req.params.id).populate(
-      "products.product",
-    );
-    if (!order) {
-      return res.status(404).json({ msg: "Order not found" });
-    }
-
-    if (order.status === "completed") {
-      return res.status(400).json({ msg: "Order is already completed" });
-    }
-
-    if (order.status === "canceled") {
-      return res.status(400).json({ msg: "Cannot complete a canceled order" });
-    }
-
-    // Mettre à jour le stock pour chaque produit de la commande
-    for (let item of order.products) {
-      const product = await Product.findById(item.product._id);
-
-      // Mise à jour de la quantité en stock
-      product.stockQuantity += item.quantity;
-
-      // Mise à jour du prix si le champ updatePrices est fourni et contient un nouveau prix
-      if (updatePrices && updatePrices[item.product._id]) {
-        product.currentPrice = updatePrices[item.product._id];
-      }
-
-      await product.save();
-    }
-
-    // Mettre à jour le statut de la commande à 'completed'
-    order.status = "completed";
-    order.updatedAt = Date.now();
-
-    await order.save();
-    res.json({ msg: "Order completed successfully", order });
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");

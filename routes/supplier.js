@@ -117,7 +117,7 @@ router.delete("/delete/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: "Supplier not found" });
     }
 
-    await supplier.remove();
+    await supplier.deleteOne();
     res.json({ msg: "Supplier deleted successfully" });
   } catch (err) {
     console.error(err.message);
