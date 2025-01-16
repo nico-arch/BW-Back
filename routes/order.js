@@ -237,4 +237,16 @@ router.get("/search", authMiddleware, async (req, res) => {
   }
 });
 
+// Supprimer une commande
+export const deleteOrder = async (id) => {
+  try {
+    const response = await axios.delete(`${API_ENDPOINT}/delete/${id}`, {
+      headers,
+    });
+    return response.data;
+  } catch (error) {
+    handleRequestError(error);
+  }
+};
+
 module.exports = router;
