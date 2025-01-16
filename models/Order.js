@@ -5,9 +5,9 @@ const OrderProductSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Product",
     required: true,
-  }, // Référence au produit commandé
-  quantity: { type: Number, required: true }, // Quantité commandée
-  price: { type: Number, required: true }, // Prix unitaire au moment de la commande
+  },
+  quantity: { type: Number, required: true },
+  price: { type: Number, required: true },
 });
 
 const OrderSchema = new mongoose.Schema({
@@ -15,17 +15,34 @@ const OrderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "Supplier",
     required: true,
-  }, // Référence au fournisseur
-  products: [OrderProductSchema], // Liste des produits commandés avec quantités
-  totalAmount: { type: Number, required: true }, // Montant total de la commande
-  orderDate: { type: Date, default: Date.now }, // Date de la commande
+  },
+  products: [OrderProductSchema],
+  totalAmount: { type: Number, required: true },
+  orderDate: { type: Date, default: Date.now },
   status: {
     type: String,
     enum: ["pending", "completed", "canceled"],
     default: "pending",
-  }, // Statut de la commande
-  createdAt: { type: Date, default: Date.now }, // Date de création de la commande
-  updatedAt: { type: Date, default: Date.now }, // Date de dernière mise à jour
+  },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  }, // L'utilisateur qui a créé la commande
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }, // L'utilisateur qui a modifié la commande
+  completedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }, // L'utilisateur qui a complété la commande
+  canceledBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }, // L'utilisateur qui a annulé la commande
 });
 
 module.exports = mongoose.model("Order", OrderSchema);
