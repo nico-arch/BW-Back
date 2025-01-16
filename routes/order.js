@@ -237,16 +237,27 @@ router.get("/search", authMiddleware, async (req, res) => {
   }
 });
 
-// Supprimer une commande
-export const deleteOrder = async (id) => {
+// Route pour supprimer une commande
+router.delete("/delete/:id", authMiddleware, async (req, res) => {
   try {
-    const response = await axios.delete(`${API_ENDPOINT}/delete/${id}`, {
-      headers,
-    });
-    return response.data;
-  } catch (error) {
-    handleRequestError(error);
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ msg: "Commande introuvable" });
+    }
+
+    // Vérifiez si la commande est déjà annulée ou terminée
+    /*if (order.status === "completed") {
+      return res.status(400).json({
+        msg: "Les commandes terminées ne peuvent pas être supprimées",
+      });
+    }*/
+
+    await Order.findByIdAndDelete(req.params.id);
+    res.json({ msg: "Commande supprimée avec succès" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Erreur serveur");
   }
-};
+});
 
 module.exports = router;
