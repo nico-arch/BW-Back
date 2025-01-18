@@ -62,6 +62,46 @@ router.post("/login", async (req, res) => {
 
   try {
     // Vérifier si l'utilisateur existe
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ msg: "Invalid email" });
+    }
+
+    // Vérifier le mot de passe
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ msg: "Invalid password" });
+    }
+
+    // Créer le payload JWT
+    const payload = {
+      user: {
+        id: user.id, // ou user._id pour MongoDB
+      },
+    };
+
+    // Signer et retourner le token JWT
+    jwt.sign(
+      payload,
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }, // Expiration du token
+      (err, token) => {
+        if (err) throw err;
+        console.log("Generated token:", token); // Debug
+        res.json({ token });
+      },
+    );
+  } catch (err) {
+    console.error("Error during login:", err.message);
+    res.status(500).send("Server error");
+  }
+});
+
+/*router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Vérifier si l'utilisateur existe
     let user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ msg: "Invalid Credentials email" });
@@ -94,9 +134,13 @@ router.post("/login", async (req, res) => {
     console.error(err.message);
     res.status(500).send("Server error");
   }
-});
+});*/
 
 const authMiddleware = require("../middlewares/authMiddleware");
+
+router.get("/test-token", authMiddleware, (req, res) => {
+  res.json({ user: req.user }); // Afficher les informations de l'utilisateur connecté
+});
 
 // Exemple de route protégée
 router.get("/protected", authMiddleware, (req, res) => {

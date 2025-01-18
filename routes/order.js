@@ -9,6 +9,7 @@ const router = express.Router();
 router.post("/add", authMiddleware, async (req, res) => {
   const { supplierId, products } = req.body;
   const userId = req.user.id;
+  //console.log("User: " + req.user.firstName + " created an order.");
 
   try {
     const supplier = await Supplier.findById(supplierId);

@@ -4,7 +4,6 @@ module.exports = function (req, res, next) {
   // Récupérer l'en-tête Authorization
   const authHeader = req.header("Authorization");
 
-  // Vérifier si l'en-tête Authorization est présent
   if (!authHeader) {
     return res.status(401).json({ msg: "No token, authorization denied" });
   }
@@ -18,9 +17,12 @@ module.exports = function (req, res, next) {
 
     // Vérifier et décoder le token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded.user;
-    next();
+
+    console.log("Decoded payload:", decoded); // Debug : Afficher les données du token
+    req.user = decoded.user; // Associer l'utilisateur décodé à la requête
+    next(); // Passer au prochain middleware
   } catch (err) {
+    console.error("Token validation failed:", err.message);
     res.status(401).json({ msg: "Token is not valid" });
   }
 };
