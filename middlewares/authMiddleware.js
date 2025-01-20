@@ -1,6 +1,30 @@
 const jwt = require("jsonwebtoken");
 
 module.exports = function (req, res, next) {
+  const authHeader = req.header("Authorization");
+
+  if (!authHeader) {
+    return res.status(401).json({ msg: "No token, authorization denied" });
+  }
+
+  try {
+    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ msg: "No token, authorization denied" });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded.user; // L'ID utilisateur est disponible ici
+    next();
+  } catch (err) {
+    console.error("Token validation error:", err.message);
+    res.status(401).json({ msg: "Token is not valid" });
+  }
+};
+
+/*const jwt = require("jsonwebtoken");
+
+module.exports = function (req, res, next) {
   // Récupérer l'en-tête Authorization
   const authHeader = req.header("Authorization");
 
@@ -25,4 +49,4 @@ module.exports = function (req, res, next) {
     console.error("Token validation failed:", err.message);
     res.status(401).json({ msg: "Token is not valid" });
   }
-};
+};*/

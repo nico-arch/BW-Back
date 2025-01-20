@@ -84,10 +84,10 @@ router.post("/login", async (req, res) => {
     jwt.sign(
       payload,
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }, // Expiration du token
+      { expiresIn: "7d" }, // Expiration du token
       (err, token) => {
         if (err) throw err;
-        console.log("Generated token:", token); // Debug
+        //console.log("Generated token:", token); // Debug
         res.json({ token });
       },
     );
