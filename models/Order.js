@@ -7,7 +7,9 @@ const OrderProductSchema = new mongoose.Schema({
     required: true,
   },
   quantity: { type: Number, required: true },
-  price: { type: Number, required: true },
+  //price: { type: Number, required: true },
+  purchasePrice: { type: Number, required: true }, // Nouveau champ
+  salePrice: { type: Number, required: true }, // Nouveau champ
 });
 
 const OrderSchema = new mongoose.Schema({
