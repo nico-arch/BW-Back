@@ -374,7 +374,8 @@ router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
       .populate("supplier")
-      .populate("products.product");
+      .populate("products.product")
+      .populate("createdBy", "firstName lastName"); // Inclure les infos utilisateur
     if (!order) {
       return res.status(404).json({ msg: "Order not found" });
     }
