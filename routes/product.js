@@ -5,14 +5,21 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const router = express.Router();
 
 // Créer un produit
-router.post("/create", authMiddleware, async (req, res) => {
-  const { productName, description, priceUSD, stockQuantity, categories } =
-    req.body;
+/*router.post("/create", authMiddleware, async (req, res) => {
+  const {
+    productName,
+    description,
+    barcode,
+    priceUSD,
+    stockQuantity,
+    categories,
+  } = req.body;
 
   try {
     const newProduct = new Product({
       productName,
       description,
+      barcode,
       priceUSD,
       stockQuantity,
       categories,
@@ -23,7 +30,46 @@ router.post("/create", authMiddleware, async (req, res) => {
     res.json(newProduct);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Server error");
+    res.status(500).send("Server error, Error :" + err);
+  }
+});
+*/
+router.post("/create", authMiddleware, async (req, res) => {
+  const {
+    productName,
+    description,
+    barcode,
+    priceUSD,
+    stockQuantity,
+    categories,
+  } = req.body;
+
+  try {
+    // Vérifier si un produit avec le même barcode existe déjà
+    if (barcode) {
+      const existingProduct = await Product.findOne({ barcode });
+      if (existingProduct) {
+        return res
+          .status(400)
+          .json({ msg: "Un produit avec ce code-barres existe déjà." });
+      }
+    }
+
+    const newProduct = new Product({
+      productName,
+      description,
+      barcode,
+      priceUSD,
+      stockQuantity,
+      categories,
+      createdBy: req.user.id,
+    });
+
+    await newProduct.save();
+    res.json(newProduct);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server error, Error :" + err);
   }
 });
 
@@ -39,9 +85,15 @@ router.get("/", authMiddleware, async (req, res) => {
 });
 
 // Mettre à jour un produit
-router.put("/update/:id", authMiddleware, async (req, res) => {
-  const { productName, description, priceUSD, stockQuantity, categories } =
-    req.body;
+/*router.put("/update/:id", authMiddleware, async (req, res) => {
+  const {
+    productName,
+    description,
+    barcode,
+    priceUSD,
+    stockQuantity,
+    categories,
+  } = req.body;
 
   try {
     const product = await Product.findById(req.params.id);
@@ -49,6 +101,7 @@ router.put("/update/:id", authMiddleware, async (req, res) => {
 
     product.productName = productName || product.productName;
     product.description = description || product.description;
+    product.barcode = barcode || product.barcode;
     product.priceUSD = priceUSD || product.priceUSD;
     product.stockQuantity = stockQuantity || product.stockQuantity;
     product.categories = categories || product.categories;
@@ -58,7 +111,47 @@ router.put("/update/:id", authMiddleware, async (req, res) => {
     res.json(product);
   } catch (err) {
     console.error(err);
-    res.status(500).send("Server error");
+    res.status(500).send("Server error, error :" + err);
+  }
+});
+*/
+router.put("/update/:id", authMiddleware, async (req, res) => {
+  const {
+    productName,
+    description,
+    barcode,
+    priceUSD,
+    stockQuantity,
+    categories,
+  } = req.body;
+
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ msg: "Produit non trouvé" });
+
+    // Vérifier si un autre produit avec le même barcode existe déjà
+    if (barcode && barcode !== product.barcode) {
+      const existingProduct = await Product.findOne({ barcode });
+      if (existingProduct) {
+        return res
+          .status(400)
+          .json({ msg: "Un autre produit avec ce code-barres existe déjà." });
+      }
+    }
+
+    product.productName = productName || product.productName;
+    product.description = description || product.description;
+    product.barcode = barcode || product.barcode;
+    product.priceUSD = priceUSD || product.priceUSD;
+    product.stockQuantity = stockQuantity || product.stockQuantity;
+    product.categories = categories || product.categories;
+    product.updatedBy = req.user.id;
+
+    await product.save();
+    res.json(product);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Server error, error :" + err);
   }
 });
 

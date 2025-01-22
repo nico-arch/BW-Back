@@ -3,7 +3,8 @@ const mongoose = require("mongoose");
 const ProductSchema = new mongoose.Schema({
   productName: { type: String, required: true },
   description: { type: String },
-  barcode: { type: String },
+  //barcode: { type: String },
+  barcode: { type: String, unique: true }, // Champ barcode ajouté
   priceUSD: { type: Number, required: true }, // Prix en dollars
   priceHTG: { type: Number, required: false }, // Prix en gourdes (calculé dynamiquement)
   currency: { type: String, enum: ["USD", "HTG"], default: "USD" }, // Devise principale
