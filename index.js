@@ -88,6 +88,7 @@ app.use("api/refundPayments", refundPaymentRoutes);
 
 //Utils
 const initRolesAndAdmin = require("./utils/initRolesAndAdmin");
+const initCurrencies = require("./utils/initCurrencies");
 
 // Connexion à la base de données
 mongoose
@@ -102,6 +103,7 @@ app.get("/", (req, res) => {
 
 // Appelez la fonction pour initialiser les rôles et l'admin par défaut
 initRolesAndAdmin();
+initCurrencies();
 
 //const PORT = process.env["PORT"] || 5000;
 const PORT = 5000;
