@@ -342,6 +342,8 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
 });
 
 // Annuler une vente
+//To do: Test supplementaire lors du retour des produits en stock (pour les vente pending qui n'ont pas de paiement)
+//Creation d'un remboursement en pending dans l'attente de paiement
 router.delete("/cancel/:id", authMiddleware, async (req, res) => {
   try {
     const sale = await Sale.findById(req.params.id);
@@ -373,6 +375,9 @@ router.delete("/cancel/:id", authMiddleware, async (req, res) => {
 });
 
 // Supprimer une vente uniquement si elle est annulée
+// Et aussi si le remboursement est complete
+// On doit supprimer les paiements de cette vente, le remboursement et les paiement de remboursement.
+//On doit supprimer les retours aussi
 router.delete("/delete/:id", authMiddleware, async (req, res) => {
   try {
     // Rechercher la vente par ID
