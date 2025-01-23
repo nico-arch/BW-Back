@@ -35,6 +35,8 @@ const serviceRoutes = require("./routes/service");
 
 const deliveryRoutes = require("./routes/delivery");
 
+const paymentRoutes = require("./routes/payment");
+
 const refundRoutes = require("./routes/refund");
 const refundPaymentRoutes = require("./routes/refundPayment");
 
@@ -82,6 +84,8 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/services", serviceRoutes);
 
 app.use("/api/deliveries", deliveryRoutes);
+
+app.use("/api/payments", paymentRoutes);
 
 app.use("/api/refunds", refundRoutes);
 app.use("api/refundPayments", refundPaymentRoutes);
