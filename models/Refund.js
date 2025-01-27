@@ -15,7 +15,7 @@ const RefundSchema = new mongoose.Schema({
   totalRefundAmount: { type: Number, required: true }, // Montant total à rembourser
   refundStatus: {
     type: String,
-    enum: ["pending", "partial", "completed"],
+    enum: ["pending", "partial", "completed", "cancelled"],
     default: "pending",
   }, // Statut du remboursement
   remarks: { type: String }, // Remarques sur le remboursement
@@ -25,7 +25,26 @@ const RefundSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
-  },
+  }, // Utilisateur ayant créé le remboursement
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }, // Utilisateur ayant modifié le remboursement
+  completedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }, // Utilisateur ayant complété le remboursement
+  canceledBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }, // Utilisateur ayant annulé le remboursement
+  logs: [
+    {
+      action: { type: String, required: true }, // Action effectuée (created, updated, etc.)
+      timestamp: { type: Date, default: Date.now },
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    },
+  ], // Historique des actions sur le remboursement
 });
 
 module.exports = mongoose.model("Refund", RefundSchema);

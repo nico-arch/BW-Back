@@ -6,7 +6,8 @@ const authMiddleware = require("../middlewares/authMiddleware");
 
 // Créer un remboursement
 router.post("/add", authMiddleware, async (req, res) => {
-  const { returnId, remarks, createdBy } = req.body;
+  const { returnId, remarks } = req.body;
+  const userId = req.user.id;
 
   try {
     const returnData = await Return.findById(returnId).populate("client");
@@ -19,7 +20,7 @@ router.post("/add", authMiddleware, async (req, res) => {
     if (existingRefund) {
       return res
         .status(400)
-        .json({ msg: "Refund already exists for this return" });
+        .json({ msg: "A refund already exists for this return" });
     }
 
     const refund = new Refund({
@@ -28,11 +29,18 @@ router.post("/add", authMiddleware, async (req, res) => {
       currency: returnData.currency,
       totalRefundAmount: returnData.totalRefundAmount,
       remarks,
-      createdBy,
+      createdBy: userId,
+      logs: [
+        {
+          action: "created",
+          timestamp: new Date(),
+          user: userId,
+        },
+      ],
     });
 
     await refund.save();
-    res.status(201).json(refund);
+    res.status(201).json({ msg: "Refund created successfully", refund });
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Server error" });
@@ -66,9 +74,10 @@ router.get("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Modifier un remboursement
+// Modifier un remboursement (ajout des logs et des vérifications)
 router.put("/edit/:id", authMiddleware, async (req, res) => {
   const { remarks } = req.body;
+  const userId = req.user.id;
 
   try {
     const refund = await Refund.findById(req.params.id);
@@ -76,26 +85,57 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: "Refund not found" });
     }
 
+    if (refund.refundStatus === "completed") {
+      return res
+        .status(400)
+        .json({ msg: "Completed refunds cannot be edited" });
+    }
+
     if (remarks) refund.remarks = remarks;
 
+    refund.updatedBy = userId;
+    refund.updatedAt = Date.now();
+    refund.logs.push({
+      action: "updated",
+      timestamp: new Date(),
+      user: userId,
+    });
+
     await refund.save();
-    res.json(refund);
+    res.json({ msg: "Refund updated successfully", refund });
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Server error" });
   }
 });
 
-// Annuler un remboursement
-router.delete("/cancel/:id", authMiddleware, async (req, res) => {
+// Annuler un remboursement (ajout des logs et statut "cancelled")
+router.put("/cancel/:id", authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+
   try {
     const refund = await Refund.findById(req.params.id);
     if (!refund) {
       return res.status(404).json({ msg: "Refund not found" });
     }
 
-    await refund.remove();
-    res.json({ msg: "Refund cancelled successfully" });
+    if (refund.refundStatus === "completed") {
+      return res
+        .status(400)
+        .json({ msg: "Completed refunds cannot be cancelled" });
+    }
+
+    refund.refundStatus = "cancelled";
+    refund.canceledBy = userId;
+    refund.updatedAt = Date.now();
+    refund.logs.push({
+      action: "cancelled",
+      timestamp: new Date(),
+      user: userId,
+    });
+
+    await refund.save();
+    res.json({ msg: "Refund cancelled successfully", refund });
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Server error" });

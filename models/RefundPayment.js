@@ -19,11 +19,23 @@ const RefundPaymentSchema = new mongoose.Schema({
   }, // Statut du paiement
   remarks: { type: String }, // Remarques sur le paiement
   createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
   processedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
   }, // Utilisateur ayant traité le paiement
+  canceledBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }, // Utilisateur ayant annulé le paiement
+  logs: [
+    {
+      action: { type: String, required: true }, // Action effectuée (created, updated, cancelled)
+      timestamp: { type: Date, default: Date.now },
+      user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    },
+  ], // Historique des actions sur le paiement
 });
 
 module.exports = mongoose.model("RefundPayment", RefundPaymentSchema);
