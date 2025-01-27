@@ -96,7 +96,7 @@ router.post("/add", authMiddleware, async (req, res) => {
     res.status(201).json(sale);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error, error: " + error });
   }
 });
 
@@ -110,7 +110,7 @@ router.get("/", authMiddleware, async (req, res) => {
     res.json(sales);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error, error: " + error });
   }
 });
 
@@ -127,7 +127,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
     res.json(sale);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error, error: " + error });
   }
 });
 
@@ -337,7 +337,7 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
     res.json(sale);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error, error: " + error });
   }
 });
 
@@ -370,7 +370,7 @@ router.delete("/cancel/:id", authMiddleware, async (req, res) => {
     res.json({ msg: "Sale cancelled successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error, error: " + error });
   }
 });
 
@@ -398,7 +398,7 @@ router.delete("/delete/:id", authMiddleware, async (req, res) => {
     res.json({ msg: "Cancelled sale deleted successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error, error: " + error });
   }
 });
 
