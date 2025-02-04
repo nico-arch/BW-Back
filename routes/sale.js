@@ -20,7 +20,9 @@ router.post("/add", authMiddleware, async (req, res) => {
     // Vérifier si la devise existe
     const currency = await Currency.findById(currencyId);
     if (!currency) {
-      return res.status(404).json({ msg: "Currency not found" });
+      return res
+        .status(404)
+        .json({ msg: "Currency not found currency id :" + currencyId });
     }
 
     // Vérifier le taux de change
