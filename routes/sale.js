@@ -1,31 +1,35 @@
 const express = require("express");
 const router = express.Router();
+const mongoose = require("mongoose");
 const Sale = require("../models/Sale");
 const Product = require("../models/Product");
 const Client = require("../models/Client");
 const Currency = require("../models/Currency");
+const Payment = require("../models/Payment"); // Pour vérifier l'existence de paiements lors de l'annulation
 const authMiddleware = require("../middlewares/authMiddleware");
 
-// Créer une nouvelle vente
+// **************************
+// Création d'une nouvelle vente
+// **************************
 router.post("/add", authMiddleware, async (req, res) => {
   const { clientId, currencyId, products, remarks, creditSale } = req.body;
 
   try {
-    // Vérifier si le client existe
+    // Vérifier l'existence du client
     const client = await Client.findById(clientId);
     if (!client) {
       return res.status(404).json({ msg: "Client not found" });
     }
 
-    // Vérifier si la devise existe
+    // Vérifier l'existence de la devise
     const currency = await Currency.findById(currencyId);
     if (!currency) {
       return res
         .status(404)
-        .json({ msg: "Currency not found currency id :" + currencyId });
+        .json({ msg: "Currency not found, currency id: " + currencyId });
     }
 
-    // Vérifier le taux de change
+    // Récupérer le taux de change depuis la devise
     const exchangeRate = currency.currentExchangeRate;
     if (!exchangeRate) {
       return res.status(400).json({ msg: "Exchange rate not available" });
@@ -36,6 +40,7 @@ router.post("/add", authMiddleware, async (req, res) => {
     let totalDiscount = 0;
     const saleProducts = [];
 
+    // Pour chaque produit dans la vente
     for (const item of products) {
       const product = await Product.findById(item.productId);
       if (!product) {
@@ -44,14 +49,24 @@ router.post("/add", authMiddleware, async (req, res) => {
           .json({ msg: `Product ${item.productId} not found` });
       }
 
-      // Vérifier le stock disponible
-      if (!creditSale && product.stockQuantity < item.quantity) {
-        return res.status(400).json({
-          msg: `Insufficient stock for product ${product.productName}`,
-        });
+      // Vérifier le stock disponible pour tous les types de vente
+      if (product.stockQuantity < item.quantity) {
+        return res
+          .status(400)
+          .json({
+            msg: `Insufficient stock for product ${product.productName}`,
+          });
       }
 
-      // Calculer le prix, taxe, remise et total pour chaque produit
+      // Pour la création, si la vente est à crédit, on réduit le stock
+      if (creditSale) {
+        product.stockQuantity -= item.quantity;
+        await product.save();
+      }
+      // Sinon, pour une vente normale, le stock n'est pas modifié lors de la création
+
+      // Calcul du prix en fonction de la devise utilisée
+      // Ici, nous considérons que si la devise est "HTG", le prix en USD est multiplié par le taux
       const price =
         currencyId === "HTG"
           ? product.priceUSD * exchangeRate
@@ -68,28 +83,22 @@ router.post("/add", authMiddleware, async (req, res) => {
         product: product._id,
         quantity: item.quantity,
         price: price,
-        tax: tax,
-        discount: discount,
+        tax: item.tax, // On conserve le pourcentage de taxe
+        discount: item.discount, // Idem pour la remise
         total: total,
       });
-
-      // Réduire le stock si ce n'est pas une vente à crédit
-      if (!creditSale) {
-        product.stockQuantity -= item.quantity;
-        await product.save();
-      }
     }
 
     const sale = new Sale({
       client: client._id,
       currency: currency._id,
-      exchangeRate,
+      exchangeRate, // Taux de change utilisé pour cette vente
       products: saleProducts,
       totalAmount,
       totalTax,
       totalDiscount,
       remarks,
-      saleStatus: creditSale ? "completed" : "pending",
+      saleStatus: "pending", // Statut initial de la vente
       creditSale,
       createdBy: req.user.id,
     });
@@ -102,13 +111,25 @@ router.post("/add", authMiddleware, async (req, res) => {
   }
 });
 
-// Obtenir toutes les ventes
+// **************************
+// Récupérer toutes les ventes (GET /)
+// On ajoute un champ calculé "saleType" dans la réponse
+// **************************
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const sales = await Sale.find()
+    let sales = await Sale.find()
       .populate("client")
       .populate("products.product")
-      .populate("currency");
+      .populate("currency")
+      .lean();
+
+    // Calculer et ajouter le champ saleType à chaque vente
+    sales = sales.map((sale) => {
+      const type = sale.creditSale ? "Credit" : "Normal";
+      sale.saleType = `${type} ${sale.saleStatus}`;
+      return sale;
+    });
+
     res.json(sales);
   } catch (error) {
     console.error(error);
@@ -116,7 +137,9 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// Obtenir une vente par ID
+// **************************
+// Récupérer une vente par ID
+// **************************
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const sale = await Sale.findById(req.params.id)
@@ -126,114 +149,34 @@ router.get("/:id", authMiddleware, async (req, res) => {
     if (!sale) {
       return res.status(404).json({ msg: "Sale not found" });
     }
-    res.json(sale);
+    // Ajout du champ saleType
+    const type = sale.creditSale ? "Credit" : "Normal";
+    const saleObj = sale.toObject();
+    saleObj.saleType = `${type} ${sale.saleStatus}`;
+    res.json(saleObj);
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Server error, error: " + error });
   }
 });
 
-// Modifier une vente
-/*router.put("/edit/:id", authMiddleware, async (req, res) => {
-  const { products, remarks } = req.body;
-
-  try {
-    const sale = await Sale.findById(req.params.id).populate(
-      "products.product",
-    );
-    if (!sale) {
-      return res.status(404).json({ msg: "Sale not found" });
-    }
-
-    if (sale.saleStatus !== "pending") {
-      return res.status(400).json({ msg: "Only pending sales can be edited" });
-    }
-
-    let totalAmount = 0;
-    let totalTax = 0;
-    let totalDiscount = 0;
-
-    if (products) {
-      for (const item of products) {
-        const product = await Product.findById(item.productId);
-        if (!product) {
-          return res
-            .status(404)
-            .json({ msg: `Product ${item.productId} not found` });
-        }
-
-        // Vérifier les stocks
-        const originalItem = sale.products.find(
-          (p) => p.product.toString() === product._id.toString(),
-        );
-        const originalQuantity = originalItem ? originalItem.quantity : 0;
-        const difference = item.quantity - originalQuantity;
-
-        if (difference > 0 && product.stockQuantity < difference) {
-          return res.status(400).json({
-            msg: `Insufficient stock for product ${product.productName}`,
-          });
-        }
-
-        if (difference !== 0) {
-          product.stockQuantity -= difference;
-          await product.save();
-        }
-
-        const price =
-          sale.currency.toString() === "HTG"
-            ? product.priceUSD * sale.exchangeRate
-            : product.priceUSD;
-        const tax = (price * item.tax) / 100;
-        const discount = (price * item.discount) / 100;
-        const total = (price + tax - discount) * item.quantity;
-
-        totalAmount += total;
-        totalTax += tax * item.quantity;
-        totalDiscount += discount * item.quantity;
-
-        originalItem.quantity = item.quantity;
-        originalItem.price = price;
-        originalItem.tax = tax;
-        originalItem.discount = discount;
-        originalItem.total = total;
-      }
-
-      sale.products = products;
-    }
-
-    if (remarks) sale.remarks = remarks;
-
-    sale.totalAmount = totalAmount;
-    sale.totalTax = totalTax;
-    sale.totalDiscount = totalDiscount;
-    sale.updatedBy = req.user.id;
-
-    await sale.save();
-    res.json(sale);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
-  }
-});
-*/
-// Modifier une vente
+// **************************
+// Modifier une vente (PUT /edit/:id)
+// La devise et le taux ne sont pas modifiables en édition
+// On reconstruit la liste des produits et ajuste le stock en fonction des différences
+// **************************
 router.put("/edit/:id", authMiddleware, async (req, res) => {
-  const { clientId, currencyId, products, remarks } = req.body;
-
+  const { clientId, products, remarks } = req.body;
   try {
-    const sale = await Sale.findById(req.params.id).populate(
-      "products.product",
-    );
+    let sale = await Sale.findById(req.params.id).populate("products.product");
     if (!sale) {
       return res.status(404).json({ msg: "Sale not found" });
     }
-
     if (sale.saleStatus !== "pending") {
       return res.status(400).json({ msg: "Only pending sales can be edited" });
     }
 
-    // Vérifier et mettre à jour le client si un nouvel ID est fourni
+    // Mise à jour du client si nécessaire
     if (clientId && clientId !== sale.client.toString()) {
       const client = await Client.findById(clientId);
       if (!client) {
@@ -242,100 +185,103 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
       sale.client = client._id;
     }
 
-    // Vérifier et mettre à jour la devise si un nouvel ID est fourni
-    if (currencyId && currencyId !== sale.currency.toString()) {
-      const currency = await Currency.findById(currencyId);
-      if (!currency) {
-        return res.status(404).json({ msg: "Currency not found" });
+    // Préparer une map des anciens produits (clé = product._id.toString())
+    const oldProductsMap = new Map();
+    sale.products.forEach((p) => {
+      // p.product est un objet (populé) ; on utilise son _id
+      oldProductsMap.set(p.product._id.toString(), p);
+    });
+
+    let totalAmount = 0;
+    let totalTax = 0;
+    let totalDiscount = 0;
+    const updatedProducts = [];
+
+    // Pour chaque produit dans la nouvelle liste (envoyée par le client)
+    for (const item of products) {
+      const product = await Product.findById(item.productId);
+      if (!product) {
+        return res
+          .status(404)
+          .json({ msg: `Product ${item.productId} not found` });
       }
 
-      const exchangeRate = currency.currentExchangeRate;
-      if (!exchangeRate) {
-        return res.status(400).json({ msg: "Exchange rate not available" });
-      }
+      // Chercher l'élément existant dans la vente
+      const oldItem = oldProductsMap.get(product._id.toString());
+      const oldQuantity = oldItem ? oldItem.quantity : 0;
+      const quantityDiff = item.quantity - oldQuantity;
 
-      sale.currency = currency._id;
-      sale.exchangeRate = exchangeRate;
-
-      // Recalculer les prix en fonction de la nouvelle devise
-      for (const item of sale.products) {
-        const product = await Product.findById(item.product);
-        const price =
-          currencyId === "HTG"
-            ? product.priceUSD * exchangeRate
-            : product.priceUSD;
-
-        item.price = price;
-        item.tax = (price * item.tax) / 100;
-        item.discount = (price * item.discount) / 100;
-        item.total = (price + item.tax - item.discount) * item.quantity;
-      }
-    }
-
-    // Mise à jour des produits
-    if (products) {
-      let totalAmount = 0;
-      let totalTax = 0;
-      let totalDiscount = 0;
-
-      for (const item of products) {
-        const product = await Product.findById(item.productId);
-        if (!product) {
+      // Vérifier et ajuster le stock
+      if (quantityDiff !== 0) {
+        if (product.stockQuantity < quantityDiff) {
           return res
-            .status(404)
-            .json({ msg: `Product ${item.productId} not found` });
+            .status(400)
+            .json({
+              msg: `Insufficient stock for product ${product.productName}`,
+            });
         }
-
-        // Vérification du stock
-        const originalItem = sale.products.find(
-          (p) => p.product.toString() === product._id.toString(),
-        );
-        const originalQuantity = originalItem ? originalItem.quantity : 0;
-        const difference = item.quantity - originalQuantity;
-
-        if (difference > 0 && product.stockQuantity < difference) {
-          return res.status(400).json({
-            msg: `Insufficient stock for product ${product.productName}`,
-          });
-        }
-
-        if (difference !== 0) {
-          product.stockQuantity -= difference;
-          await product.save();
-        }
-
-        const price =
-          sale.currency.toString() === "HTG"
-            ? product.priceUSD * sale.exchangeRate
-            : product.priceUSD;
-        const tax = (price * item.tax) / 100;
-        const discount = (price * item.discount) / 100;
-        const total = (price + tax - discount) * item.quantity;
-
-        totalAmount += total;
-        totalTax += tax * item.quantity;
-        totalDiscount += discount * item.quantity;
-
-        originalItem.quantity = item.quantity;
-        originalItem.price = price;
-        originalItem.tax = tax;
-        originalItem.discount = discount;
-        originalItem.total = total;
+        product.stockQuantity -= quantityDiff;
+        await product.save();
       }
 
-      sale.totalAmount = totalAmount;
-      sale.totalTax = totalTax;
-      sale.totalDiscount = totalDiscount;
+      // Calculer le prix en utilisant le taux déjà enregistré dans la vente
+      // On déduit ici que la devise de la vente est fixée (sale.currency et sale.exchangeRate)
+      // Pour simplifier, nous utilisons product.priceUSD et, si la vente est en HTG, multiplions par sale.exchangeRate.
+      // Vous pouvez adapter cette condition si nécessaire.
+      const isHTG = sale.currency && sale.currency.currencyCode === "HTG";
+      const price = isHTG
+        ? product.priceUSD * sale.exchangeRate
+        : product.priceUSD;
+      const tax = (price * item.tax) / 100;
+      const discount = (price * item.discount) / 100;
+      const total = (price + tax - discount) * item.quantity;
+
+      totalAmount += total;
+      totalTax += tax * item.quantity;
+      totalDiscount += discount * item.quantity;
+
+      if (oldItem) {
+        // Mettre à jour l'élément existant
+        oldItem.quantity = item.quantity;
+        oldItem.price = price;
+        oldItem.tax = item.tax;
+        oldItem.discount = item.discount;
+        oldItem.total = total;
+        updatedProducts.push(oldItem);
+        oldProductsMap.delete(product._id.toString());
+      } else {
+        // Nouvel élément, l'ajouter avec product: product._id
+        updatedProducts.push({
+          product: product._id,
+          quantity: item.quantity,
+          price: price,
+          tax: item.tax,
+          discount: item.discount,
+          total: total,
+        });
+      }
     }
 
-    // Mise à jour des remarques
-    if (remarks) sale.remarks = remarks;
+    // Pour les produits qui étaient dans la vente mais non présents dans la nouvelle liste,
+    // remettre leur quantité au stock.
+    for (const [prodId, oldItem] of oldProductsMap) {
+      const product = await Product.findById(prodId);
+      if (product) {
+        product.stockQuantity += oldItem.quantity;
+        await product.save();
+      }
+    }
 
-    // Enregistrer les modifications
+    sale.products = updatedProducts;
+    sale.totalAmount = totalAmount;
+    sale.totalTax = totalTax;
+    sale.totalDiscount = totalDiscount;
+
+    if (remarks !== undefined) sale.remarks = remarks;
     sale.updatedBy = req.user.id;
     sale.updatedAt = Date.now();
-    await sale.save();
 
+    await sale.save();
     res.json(sale);
   } catch (error) {
     console.error(error);
@@ -343,25 +289,45 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Annuler une vente
-//To do: Test supplementaire lors du retour des produits en stock (pour les vente pending qui n'ont pas de paiement)
-//Creation d'un remboursement en pending dans l'attente de paiement
+// **************************
+// Annuler une vente (DELETE /cancel/:id)
+// Conditions d'annulation :
+// - Si la vente est normale (non à crédit) sans aucun paiement, le stock n'est pas ajusté.
+// - Si la vente est à crédit, le stock des produits est réintégré.
+// - Si la vente normale a au moins un paiement associé, l'annulation est interdite.
+// **************************
 router.delete("/cancel/:id", authMiddleware, async (req, res) => {
   try {
     const sale = await Sale.findById(req.params.id);
     if (!sale) {
       return res.status(404).json({ msg: "Sale not found" });
     }
-
     if (sale.saleStatus === "cancelled") {
       return res.status(400).json({ msg: "Sale is already cancelled" });
     }
 
-    for (const item of sale.products) {
-      const product = await Product.findById(item.product);
-      if (product) {
-        product.stockQuantity += item.quantity;
-        await product.save();
+    // Pour une vente normale, vérifier s'il existe au moins un paiement non annulé
+    if (!sale.creditSale) {
+      const payments = await Payment.find({
+        sale: sale._id,
+        paymentStatus: { $ne: "cancelled" },
+      });
+      if (payments.length > 0) {
+        return res
+          .status(400)
+          .json({
+            msg: "Cannot cancel a normal sale with payments associated",
+          });
+      }
+      // Pour une vente normale sans paiement, ne pas ajuster le stock
+    } else {
+      // Pour une vente à crédit, réintégrer le stock de tous les produits
+      for (const item of sale.products) {
+        const product = await Product.findById(item.product);
+        if (product) {
+          product.stockQuantity += item.quantity;
+          await product.save();
+        }
       }
     }
 
@@ -376,26 +342,21 @@ router.delete("/cancel/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Supprimer une vente uniquement si elle est annulée
-// Et aussi si le remboursement est complete
-// On doit supprimer les paiements de cette vente, le remboursement et les paiement de remboursement.
-//On doit supprimer les retours aussi
+// **************************
+// Supprimer une vente (DELETE /delete/:id)
+// Seules les ventes annulées peuvent être supprimées
+// **************************
 router.delete("/delete/:id", authMiddleware, async (req, res) => {
   try {
-    // Rechercher la vente par ID
     const sale = await Sale.findById(req.params.id);
     if (!sale) {
       return res.status(404).json({ msg: "Sale not found" });
     }
-
-    // Vérifier si le statut de la vente est "cancelled"
     if (sale.saleStatus !== "cancelled") {
-      return res.status(400).json({
-        msg: "Only cancelled sales can be deleted",
-      });
+      return res
+        .status(400)
+        .json({ msg: "Only cancelled sales can be deleted" });
     }
-
-    // Supprimer la vente
     await Sale.findByIdAndDelete(req.params.id);
     res.json({ msg: "Cancelled sale deleted successfully" });
   } catch (error) {
@@ -405,209 +366,3 @@ router.delete("/delete/:id", authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
-
-/*
-const express = require("express");
-const router = express.Router();
-const Sale = require("../models/Sale");
-const Product = require("../models/Product");
-const Client = require("../models/Client");
-const Currency = require("../models/Currency");
-const authMiddleware = require("../middlewares/authMiddleware");
-
-// Créer une nouvelle vente
-router.post("/add", authMiddleware, async (req, res) => {
-  const { clientId, currencyId, products, remarks, createdBy } = req.body;
-
-  try {
-    // Vérifier si le client existe
-    const client = await Client.findById(clientId);
-    if (!client) {
-      return res.status(404).json({ msg: "Client not found" });
-    }
-
-    // Vérifier si la devise existe
-    const currency = await Currency.findById(currencyId);
-    if (!currency) {
-      return res.status(404).json({ msg: "Currency not found" });
-    }
-
-    // Vérifier le taux de change
-    const exchangeRate = currency.exchangeRates?.find(
-      (rate) => rate.toCurrency === "HTG",
-    );
-    if (!exchangeRate) {
-      return res.status(400).json({ msg: "Exchange rate for HTG not found" });
-    }
-
-    let totalAmount = 0;
-    const saleProducts = [];
-
-    for (const item of products) {
-      const product = await Product.findById(item.productId);
-      if (!product) {
-        return res
-          .status(404)
-          .json({ msg: `Product ${item.productId} not found` });
-      }
-
-      // Vérifier le stock disponible
-      if (product.stockQuantity < item.quantity) {
-        return res.status(400).json({
-          msg: `Insufficient stock for product ${product.productName}`,
-        });
-      }
-
-      // Calculer le prix dans la devise de la vente
-      const price =
-        currencyId === "HTG"
-          ? product.currentPrice * exchangeRate.rate
-          : product.currentPrice;
-
-      totalAmount += price * item.quantity;
-
-      saleProducts.push({
-        product: product._id,
-        quantity: item.quantity,
-        price: price,
-      });
-
-      // Réduire le stock
-      product.stockQuantity -= item.quantity;
-      await product.save();
-    }
-
-    const sale = new Sale({
-      client: client._id,
-      currency: currency._id,
-      exchangeRate: exchangeRate.rate,
-      products: saleProducts,
-      totalAmount,
-      remarks,
-      createdBy,
-    });
-
-    await sale.save();
-    res.status(201).json(sale);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
-  }
-});
-
-// Obtenir toutes les ventes
-router.get("/", authMiddleware, async (req, res) => {
-  try {
-    const sales = await Sale.find()
-      .populate("client")
-      .populate("products.product")
-      .populate("currency");
-    res.json(sales);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
-  }
-});
-
-// Obtenir une vente par ID
-router.get("/:id", authMiddleware, async (req, res) => {
-  try {
-    const sale = await Sale.findById(req.params.id)
-      .populate("client")
-      .populate("products.product")
-      .populate("currency");
-    if (!sale) {
-      return res.status(404).json({ msg: "Sale not found" });
-    }
-    res.json(sale);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
-  }
-});
-
-// Modifier une vente
-router.put("/edit/:id", authMiddleware, async (req, res) => {
-  const { products, remarks } = req.body;
-
-  try {
-    const sale = await Sale.findById(req.params.id).populate(
-      "products.product",
-    );
-    if (!sale) {
-      return res.status(404).json({ msg: "Sale not found" });
-    }
-
-    // Vérifier les stocks pour les modifications
-    if (products) {
-      for (const item of products) {
-        const product = await Product.findById(item.productId);
-        if (!product) {
-          return res
-            .status(404)
-            .json({ msg: `Product ${item.productId} not found` });
-        }
-
-        // Vérifier le stock disponible pour la quantité supplémentaire
-        const originalItem = sale.products.find(
-          (p) => p.product.toString() === product._id.toString(),
-        );
-        const originalQuantity = originalItem ? originalItem.quantity : 0;
-
-        const difference = item.quantity - originalQuantity;
-        if (difference > 0 && product.stockQuantity < difference) {
-          return res.status(400).json({
-            msg: `Insufficient stock for product ${product.productName}`,
-          });
-        }
-
-        // Mettre à jour le stock
-        product.stockQuantity -= difference;
-        await product.save();
-      }
-
-      sale.products = products;
-    }
-
-    if (remarks) sale.remarks = remarks;
-
-    await sale.save();
-    res.json(sale);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
-  }
-});
-
-// Supprimer une vente (annulation incluse)
-router.delete("/cancel/:id", authMiddleware, async (req, res) => {
-  try {
-    const sale = await Sale.findById(req.params.id);
-    if (!sale) {
-      return res.status(404).json({ msg: "Sale not found" });
-    }
-
-    if (sale.saleStatus === "cancelled") {
-      return res.status(400).json({ msg: "Sale is already cancelled" });
-    }
-
-    // Retourner les produits au stock
-    for (const item of sale.products) {
-      const product = await Product.findById(item.product);
-      if (product) {
-        product.stockQuantity += item.quantity;
-        await product.save();
-      }
-    }
-
-    sale.saleStatus = "cancelled";
-    await sale.save();
-    res.json({ msg: "Sale cancelled successfully" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
-  }
-});
-
-module.exports = router;
-*/
