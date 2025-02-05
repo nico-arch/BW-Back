@@ -32,6 +32,20 @@ router.get("/email/:email", authMiddleware, async (req, res) => {
   }
 });
 
+// --- Nouvelle route : Rechercher un utilisateur par ID ---
+router.get("/:id", authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).populate("roles");
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+    res.json(user);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+});
+
 // Route pour ajouter un nouvel utilisateur (admin seulement)
 router.post("/add", authMiddleware, async (req, res) => {
   const { firstName, lastName, email, password, roles } = req.body;
