@@ -7,6 +7,7 @@ const Client = require("../models/Client");
 const authMiddleware = require("../middlewares/authMiddleware");
 
 // Créer un nouveau paiement
+/*
 router.post("/add", authMiddleware, async (req, res) => {
   const { saleId, clientId, amount, currency, paymentType, remarks } = req.body;
   const userId = req.user.id;
@@ -79,6 +80,108 @@ router.post("/add", authMiddleware, async (req, res) => {
               });
             }
 
+            product.stockQuantity -= item.quantity;
+            await product.save();
+          }
+        } catch (error) {
+          console.error(error);
+          return res.status(500).json({
+            msg: "An error occurred while adjusting stock. Please try again.",
+          });
+        }
+      }
+
+      await sale.save();
+    }
+
+    await payment.save();
+    res.status(201).json({ msg: "Payment created successfully", payment });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
+*/
+// Créer un nouveau paiement
+router.post("/add", authMiddleware, async (req, res) => {
+  const { saleId, clientId, amount, currency, paymentType, remarks } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // Vérifier si la vente existe
+    const sale = await Sale.findById(saleId)
+      .populate("products.product")
+      .populate("currency");
+    if (!sale) {
+      return res.status(404).json({ msg: "Sale not found" });
+    }
+
+    // Vérifier que la vente n'est pas annulée
+    if (sale.saleStatus === "cancelled") {
+      return res
+        .status(400)
+        .json({ msg: "Cannot add payment to a cancelled sale" });
+    }
+
+    // Vérifier si le client existe
+    const client = await Client.findById(clientId);
+    if (!client) {
+      return res.status(404).json({ msg: "Client not found" });
+    }
+
+    // Vérifier si la devise du paiement correspond à celle de la vente
+    // On suppose ici que sale.currency est peuplé et possède la propriété currencyCode
+    if (sale.currency.currencyCode !== currency) {
+      return res
+        .status(400)
+        .json({ msg: "Payment currency does not match sale currency" });
+    }
+
+    // Calculer le montant restant à payer
+    const totalPaidAgg = await Payment.aggregate([
+      { $match: { sale: sale._id, paymentStatus: { $ne: "cancelled" } } },
+      { $group: { _id: "$sale", totalPaid: { $sum: "$amount" } } },
+    ]);
+    const amountAlreadyPaid =
+      totalPaidAgg.length > 0 ? totalPaidAgg[0].totalPaid : 0;
+    const remainingAmount = sale.totalAmount - amountAlreadyPaid;
+    if (amount > remainingAmount) {
+      return res.status(400).json({ msg: "Payment exceeds remaining amount" });
+    }
+
+    // Créer le paiement
+    const payment = new Payment({
+      sale: sale._id,
+      client: client._id,
+      amount,
+      currency,
+      paymentType,
+      remarks,
+      createdBy: userId,
+    });
+
+    // Si le paiement complète le montant dû, on marque la vente comme "completed"
+    if (amount === remainingAmount) {
+      sale.saleStatus = "completed";
+      sale.completedBy = userId;
+      sale.updatedAt = Date.now();
+
+      // Pour une vente normale (non à crédit), ajuster le stock si nécessaire
+      if (!sale.creditSale) {
+        try {
+          for (const item of sale.products) {
+            const product = await Product.findById(item.product._id);
+            if (!product) {
+              return res.status(404).json({
+                msg: `Product with ID ${item.product._id} not found. Stock adjustment failed.`,
+              });
+            }
+            if (product.stockQuantity < item.quantity) {
+              return res.status(400).json({
+                msg: `Insufficient stock for product ${product.productName}. Required: ${item.quantity}, Available: ${product.stockQuantity}`,
+              });
+            }
             product.stockQuantity -= item.quantity;
             await product.save();
           }
