@@ -51,11 +51,9 @@ router.post("/add", authMiddleware, async (req, res) => {
 
       // Vérifier le stock disponible pour tous les types de vente
       if (product.stockQuantity < item.quantity) {
-        return res
-          .status(400)
-          .json({
-            msg: `Insufficient stock for product ${product.productName}`,
-          });
+        return res.status(400).json({
+          msg: `Insufficient stock for product ${product.productName}`,
+        });
       }
 
       // Pour la création, si la vente est à crédit, on réduit le stock
@@ -168,7 +166,10 @@ router.get("/:id", authMiddleware, async (req, res) => {
 router.put("/edit/:id", authMiddleware, async (req, res) => {
   const { clientId, products, remarks } = req.body;
   try {
-    let sale = await Sale.findById(req.params.id).populate("products.product");
+    // Ajouter .populate("currency") pour que sale.currency soit un objet et non un ObjectId
+    let sale = await Sale.findById(req.params.id)
+      .populate("products.product")
+      .populate("currency");
     if (!sale) {
       return res.status(404).json({ msg: "Sale not found" });
     }
@@ -214,20 +215,16 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
       // Vérifier et ajuster le stock
       if (quantityDiff !== 0) {
         if (product.stockQuantity < quantityDiff) {
-          return res
-            .status(400)
-            .json({
-              msg: `Insufficient stock for product ${product.productName}`,
-            });
+          return res.status(400).json({
+            msg: `Insufficient stock for product ${product.productName}`,
+          });
         }
         product.stockQuantity -= quantityDiff;
         await product.save();
       }
 
       // Calculer le prix en utilisant le taux déjà enregistré dans la vente
-      // On déduit ici que la devise de la vente est fixée (sale.currency et sale.exchangeRate)
-      // Pour simplifier, nous utilisons product.priceUSD et, si la vente est en HTG, multiplions par sale.exchangeRate.
-      // Vous pouvez adapter cette condition si nécessaire.
+      // On utilise sale.currency.currencyCode qui est maintenant défini grâce à populate("currency")
       const isHTG = sale.currency && sale.currency.currencyCode === "HTG";
       const price = isHTG
         ? product.priceUSD * sale.exchangeRate
@@ -313,11 +310,9 @@ router.delete("/cancel/:id", authMiddleware, async (req, res) => {
         paymentStatus: { $ne: "cancelled" },
       });
       if (payments.length > 0) {
-        return res
-          .status(400)
-          .json({
-            msg: "Cannot cancel a normal sale with payments associated",
-          });
+        return res.status(400).json({
+          msg: "Cannot cancel a normal sale with payments associated",
+        });
       }
       // Pour une vente normale sans paiement, ne pas ajuster le stock
     } else {
