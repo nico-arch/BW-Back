@@ -303,20 +303,19 @@ router.delete("/cancel/:id", authMiddleware, async (req, res) => {
       return res.status(400).json({ msg: "Sale is already cancelled" });
     }
 
-    // Pour une vente normale, vérifier s'il existe au moins un paiement non annulé
-    if (!sale.creditSale) {
-      const payments = await Payment.find({
-        sale: sale._id,
-        paymentStatus: { $ne: "cancelled" },
-      });
-      if (payments.length > 0) {
-        return res.status(400).json({
-          msg: "Cannot cancel a normal sale with payments associated",
-        });
-      }
-      // Pour une vente normale sans paiement, ne pas ajuster le stock
-    } else {
-      // Pour une vente à crédit, réintégrer le stock de tous les produits
+    // Vérifier s'il existe au moins un paiement non annulé associé à cette vente
+    const payments = await Payment.find({
+      sale: sale._id,
+      paymentStatus: { $ne: "cancelled" },
+    });
+    if (payments.length > 0) {
+      return res
+        .status(400)
+        .json({ msg: "Cannot cancel a sale with payments associated" });
+    }
+
+    // Si la vente est à crédit (et qu'il n'existe aucun paiement), retourner le stock des produits
+    if (sale.creditSale) {
       for (const item of sale.products) {
         const product = await Product.findById(item.product);
         if (product) {
