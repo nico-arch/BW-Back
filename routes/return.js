@@ -12,30 +12,46 @@ router.post("/add", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // Vérifier la vente
-    const sale = await Sale.findById(saleId).populate("products.product");
+    // Récupérer la vente avec les produits et la devise
+    const sale = await Sale.findById(saleId)
+      .populate("products.product")
+      .populate("currency");
     if (!sale) {
       return res.status(404).json({ msg: "Sale not found" });
     }
 
-    // Vérifier le client
+    // Vérifier que le client correspond à la vente
     if (sale.client.toString() !== clientId) {
       return res.status(400).json({ msg: "Client does not match sale" });
     }
 
-    // Calculer le montant total à rembourser et vérifier les quantités retournées
     let totalRefundAmount = 0;
     const returnProducts = [];
 
+    // Pour chaque produit envoyé dans le payload
     for (const item of products) {
+      // Vérifier que item.productId est défini
+      if (!item.productId) {
+        return res
+          .status(400)
+          .json({ msg: "Missing productId in return request item" });
+      }
+      const itemProductId = item.productId.toString();
+
+      // Recherche de l'élément dans la vente, en s'assurant que p.product et p.product._id existent
       const saleProduct = sale.products.find(
-        (p) => p.product._id.toString() === item.productId,
+        (p) =>
+          p.product &&
+          p.product._id &&
+          p.product._id.toString() === itemProductId,
       );
 
       if (!saleProduct) {
+        console.error("Liste des produits de la vente :", sale.products);
+        console.error("Produit recherché :", itemProductId);
         return res
           .status(404)
-          .json({ msg: `Product ${item.productId} not found in sale` });
+          .json({ msg: `Product ${itemProductId} not found in sale` });
       }
 
       if (item.quantity > saleProduct.quantity) {
@@ -44,27 +60,48 @@ router.post("/add", authMiddleware, async (req, res) => {
         });
       }
 
+      // Calcul du montant à rembourser pour ce produit
       totalRefundAmount += item.quantity * saleProduct.price;
 
+      // Préparation de l'objet pour le retour
       returnProducts.push({
         product: saleProduct.product._id,
         quantity: item.quantity,
         price: saleProduct.price,
       });
+
+      // Mise à jour de la quantité vendue dans la vente
+      saleProduct.quantity -= item.quantity;
+
+      // Si la quantité restante est 0, retirer cet élément de la vente
+      if (saleProduct.quantity === 0) {
+        sale.products = sale.products.filter(
+          (p) =>
+            p.product &&
+            p.product._id &&
+            p.product._id.toString() !== itemProductId,
+        );
+      }
     }
 
-    // Créer le retour
+    // Mettre à jour le total de la vente en soustrayant le montant remboursé
+    sale.totalAmount = sale.totalAmount - totalRefundAmount;
+    // Vous pouvez également recalculer totalTax et totalDiscount si nécessaire
+    await sale.save();
+
+    // Créer le document Return
     const returnEntry = new Return({
       sale: sale._id,
       client: clientId,
       products: returnProducts,
-      currency: sale.currency,
+      // Ici, nous utilisons le code de la devise de la vente
+      currency: sale.currency.currencyCode,
       totalRefundAmount,
       remarks,
       createdBy: userId,
     });
 
-    // Mettre à jour le stock
+    // Mettre à jour le stock pour chaque produit retourné
     for (const item of returnProducts) {
       const product = await Product.findById(item.product);
       if (product) {
@@ -73,22 +110,27 @@ router.post("/add", authMiddleware, async (req, res) => {
       }
     }
 
-    // Créer un remboursement lié au retour
+    await returnEntry.save();
+
+    // Créer le document Refund associé au retour
     const refund = new Refund({
       return: returnEntry._id,
       client: clientId,
-      currency: sale.currency,
+      currency: sale.currency.currencyCode,
       totalRefundAmount,
       createdBy: userId,
     });
 
-    await returnEntry.save();
     await refund.save();
 
-    res.status(201).json({ msg: "Return created successfully", returnEntry });
+    res.status(201).json({
+      msg: "Return and refund created successfully",
+      returnEntry,
+      refund,
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ msg: "Server error" });
+    res.status(500).json({ msg: "Server error, error: " + error });
   }
 });
 
