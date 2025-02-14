@@ -142,4 +142,21 @@ router.put("/cancel/:id", authMiddleware, async (req, res) => {
   }
 });
 
+// Obtenir le refund associé à une vente
+router.get("/sale/:saleId", authMiddleware, async (req, res) => {
+  try {
+    // Rechercher un refund dont le champ "sale" correspond à l'ID fourni
+    const refund = await Refund.findOne({ sale: req.params.saleId })
+      .populate("return")
+      .populate("client");
+    if (!refund) {
+      return res.status(404).json({ msg: "Refund not found for this sale" });
+    }
+    res.json(refund);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Server error" });
+  }
+});
+
 module.exports = router;

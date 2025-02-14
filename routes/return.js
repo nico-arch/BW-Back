@@ -12,7 +12,7 @@ router.post("/add", authMiddleware, async (req, res) => {
   const userId = req.user.id;
 
   try {
-    // Récupérer la vente avec les produits et la devise
+    // Récupérer la vente avec ses produits et la devise
     const sale = await Sale.findById(saleId)
       .populate("products.product")
       .populate("currency");
@@ -86,7 +86,7 @@ router.post("/add", authMiddleware, async (req, res) => {
 
     // Mettre à jour le total de la vente en soustrayant le montant remboursé
     sale.totalAmount = sale.totalAmount - totalRefundAmount;
-    // Vous pouvez également recalculer totalTax et totalDiscount si nécessaire
+    // (Vous pouvez également recalculer totalTax et totalDiscount si nécessaire)
     await sale.save();
 
     // Créer le document Return
@@ -94,14 +94,14 @@ router.post("/add", authMiddleware, async (req, res) => {
       sale: sale._id,
       client: clientId,
       products: returnProducts,
-      // Ici, nous utilisons le code de la devise de la vente
+      // Utiliser le code de la devise de la vente
       currency: sale.currency.currencyCode,
       totalRefundAmount,
       remarks,
       createdBy: userId,
     });
 
-    // Mettre à jour le stock pour chaque produit retourné
+    // Mettre à jour le stock pour chaque produit retourné (incrémenter le stock)
     for (const item of returnProducts) {
       const product = await Product.findById(item.product);
       if (product) {
@@ -112,16 +112,25 @@ router.post("/add", authMiddleware, async (req, res) => {
 
     await returnEntry.save();
 
-    // Créer le document Refund associé au retour
-    const refund = new Refund({
-      return: returnEntry._id,
-      client: clientId,
-      currency: sale.currency.currencyCode,
-      totalRefundAmount,
-      createdBy: userId,
-    });
-
-    await refund.save();
+    // Vérifier s'il existe déjà un Refund pour cette vente
+    let refund = await Refund.findOne({ sale: sale._id });
+    if (refund) {
+      // Mettre à jour le refund en ajoutant le montant du nouveau retour
+      refund.totalRefundAmount += totalRefundAmount;
+      refund.updatedAt = Date.now();
+      await refund.save();
+    } else {
+      // Créer un nouveau Refund associé à cette vente
+      refund = new Refund({
+        sale: sale._id, // Champ ajouté pour associer le Refund à la vente
+        return: returnEntry._id,
+        client: clientId,
+        currency: sale.currency.currencyCode,
+        totalRefundAmount,
+        createdBy: userId,
+      });
+      await refund.save();
+    }
 
     res.status(201).json({
       msg: "Return and refund created successfully",
@@ -221,24 +230,56 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// Supprimer un retour
-router.delete("/cancel/:id", authMiddleware, async (req, res) => {
+// Annuler un retour (mettre à jour le retour en "cancelled" et réintégrer les quantités dans la vente)
+// Annuler un retour (mettre à jour son statut et réintégrer les quantités dans la vente)
+router.put("/cancel/:id", authMiddleware, async (req, res) => {
   const userId = req.user.id;
-
   try {
-    const returnEntry = await Return.findById(req.params.id);
+    // Récupérer le retour avec ses produits et la vente associée
+    const returnEntry = await Return.findById(req.params.id)
+      .populate("products.product")
+      .populate("sale")
+      .populate("createdBy", "firstName lastName");
     if (!returnEntry) {
       return res.status(404).json({ msg: "Return not found" });
     }
-
+    // On ne peut annuler qu'un retour en statut "pending"
     if (returnEntry.refundStatus !== "pending") {
       return res
         .status(400)
         .json({ msg: "Only pending returns can be canceled" });
     }
 
-    // Réajuster le stock
+    // Récupérer la vente associée avec ses produits
+    const sale = await Sale.findById(returnEntry.sale).populate(
+      "products.product",
+    );
+    if (!sale) {
+      return res.status(404).json({ msg: "Associated sale not found" });
+    }
+
+    // Pour chaque produit du retour, réintégrer la quantité dans la vente :
     for (const item of returnEntry.products) {
+      const itemId = item.product.toString();
+      const existingProduct = sale.products.find(
+        (p) =>
+          p.product && p.product._id && p.product._id.toString() === itemId,
+      );
+      if (existingProduct) {
+        existingProduct.quantity += item.quantity;
+        existingProduct.total =
+          existingProduct.price * existingProduct.quantity;
+      } else {
+        sale.products.push({
+          product: item.product,
+          quantity: item.quantity,
+          price: item.price,
+          tax: 0,
+          discount: 0,
+          total: item.price * item.quantity,
+        });
+      }
+      // Réduire le stock (le retour avait ajouté des quantités, on les retire)
       const product = await Product.findById(item.product);
       if (product) {
         product.stockQuantity -= item.quantity;
@@ -246,10 +287,42 @@ router.delete("/cancel/:id", authMiddleware, async (req, res) => {
       }
     }
 
-    returnEntry.canceledBy = userId;
-    await returnEntry.remove();
+    // Réajuster le total de la vente en réintégrant le montant du retour
+    sale.totalAmount = sale.totalAmount + returnEntry.totalRefundAmount;
+    await sale.save();
 
-    res.json({ msg: "Return canceled successfully" });
+    // Mettre à jour le Refund associé, s'il existe
+    let refund = await Refund.findOne({ sale: sale._id });
+    if (refund) {
+      refund.totalRefundAmount -= returnEntry.totalRefundAmount;
+      if (refund.totalRefundAmount <= 0) {
+        refund.totalRefundAmount = 0;
+        refund.refundStatus = "pending";
+      }
+      refund.updatedAt = Date.now();
+      await refund.save();
+    }
+
+    // Marquer le retour comme annulé
+    returnEntry.refundStatus = "cancelled";
+    returnEntry.canceledBy = userId;
+    returnEntry.updatedAt = Date.now();
+    await returnEntry.save();
+
+    res.json({ msg: "Return cancelled successfully", returnEntry, sale });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ msg: "Server error", error: error.toString() });
+  }
+});
+// Obtenir les retours pour une vente spécifique
+router.get("/sale/:saleId", authMiddleware, async (req, res) => {
+  try {
+    const returns = await Return.find({ sale: req.params.saleId })
+      .populate("sale")
+      .populate("client")
+      .populate("products.product");
+    res.json(returns);
   } catch (error) {
     console.error(error);
     res.status(500).json({ msg: "Server error" });

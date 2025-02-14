@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const RefundSchema = new mongoose.Schema({
+  sale: { type: mongoose.Schema.Types.ObjectId, ref: "Sale", required: true },
   return: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Return",
