@@ -66,9 +66,12 @@ router.post("/add", authMiddleware, async (req, res) => {
       // Calcul du prix en fonction de la devise utilisée
       // Ici, nous considérons que si la devise est "HTG", le prix en USD est multiplié par le taux
       const price =
-        currencyId === "HTG"
+        currency.currencyCode === "HTG"
           ? product.priceUSD * exchangeRate
           : product.priceUSD;
+
+      //console.log("\ncurrency.currencyCode :" + currency.currencyCode);
+      //return;
       const tax = (price * item.tax) / 100;
       const discount = (price * item.discount) / 100;
       const total = (price + tax - discount) * item.quantity;
