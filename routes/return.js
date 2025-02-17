@@ -39,7 +39,7 @@ router.post("/add", authMiddleware, async (req, res) => {
       }
       const itemProductId = item.productId.toString();
 
-      // Recherche de l'élément dans la vente, en s'assurant que p.product et p.product._id existent
+      // Recherche de l'élément dans la vente (vérification que p.product et p.product._id existent)
       const saleProduct = sale.products.find(
         (p) =>
           p.product &&
@@ -73,8 +73,6 @@ router.post("/add", authMiddleware, async (req, res) => {
 
       // Mise à jour de la quantité vendue dans la vente
       saleProduct.quantity -= item.quantity;
-
-      // Si la quantité restante est 0, retirer cet élément de la vente
       if (saleProduct.quantity === 0) {
         sale.products = sale.products.filter(
           (p) =>
@@ -87,7 +85,7 @@ router.post("/add", authMiddleware, async (req, res) => {
 
     // Mettre à jour le total de la vente en soustrayant le montant remboursé
     sale.totalAmount = sale.totalAmount - totalRefundAmount;
-    // (Vous pouvez recalculer totalTax et totalDiscount si nécessaire)
+    // (Vous pouvez également recalculer totalTax et totalDiscount si nécessaire)
     await sale.save();
 
     // Créer le document Return
@@ -102,17 +100,8 @@ router.post("/add", authMiddleware, async (req, res) => {
       createdBy: userId,
     });
 
-    // Mettre à jour le stock pour chaque produit retourné (incrémenter le stock)
-    //for (const item of returnProducts) {
-    // const product = await Product.findById(item.product);
-    // if (product) {
-    //  product.stockQuantity += item.quantity;
-    //  await product.save();
-    // }
-    //}
-
-    // Mettre à jour le stock pour chaque produit retourné uniquement
-    // si la vente est à crédit ou si la vente est complète.
+    // Mettre à jour le stock pour chaque produit retourné
+    // Seul si la vente est à crédit ou si la vente est normale complète (saleStatus === "completed")
     if (sale.creditSale || sale.saleStatus === "completed") {
       for (const item of returnProducts) {
         const product = await Product.findById(item.product);
@@ -122,10 +111,9 @@ router.post("/add", authMiddleware, async (req, res) => {
         }
       }
     }
-
     await returnEntry.save();
 
-    // Vérifier s'il y a au moins un paiement effectif pour la vente (excluant les paiements annulés)
+    // Calculer le total des paiements effectifs pour cette vente (en ignorant les paiements annulés)
     const totalPaidAgg = await Payment.aggregate([
       { $match: { sale: sale._id, paymentStatus: { $ne: "cancelled" } } },
       { $group: { _id: "$sale", totalPaid: { $sum: "$amount" } } },
@@ -133,38 +121,46 @@ router.post("/add", authMiddleware, async (req, res) => {
     const amountAlreadyPaid =
       totalPaidAgg.length > 0 ? totalPaidAgg[0].totalPaid : 0;
 
-    // Si des paiements existent, calculer le montant de remboursement à créer
-    // Par exemple, refundAmount = min(totalRefundAmount, amountAlreadyPaid)
-    const refundAmount =
-      amountAlreadyPaid > 0
-        ? Math.min(totalRefundAmount, amountAlreadyPaid)
-        : 0;
+    // Calculer le montant déjà remboursé pour cette vente (s'il existe déjà un Refund)
+    let existingRefundAmount = 0;
+    let refund = await Refund.findOne({ sale: sale._id });
+    if (refund) {
+      existingRefundAmount = refund.totalRefundAmount;
+    }
 
-    let refund = null;
-    if (refundAmount > 0) {
-      refund = await Refund.findOne({ sale: sale._id });
+    // Le montant additionnel de remboursement ne peut dépasser
+    // (amountAlreadyPaid - existingRefundAmount)
+    const availableForRefund = Math.max(
+      amountAlreadyPaid - existingRefundAmount,
+      0,
+    );
+    const refundAddition = Math.min(totalRefundAmount, availableForRefund);
+
+    if (refundAddition > 0) {
       if (refund) {
-        refund.totalRefundAmount += refundAmount;
+        refund.totalRefundAmount += refundAddition;
         refund.updatedAt = Date.now();
         await refund.save();
       } else {
         refund = new Refund({
-          sale: sale._id, // Association avec la vente
+          sale: sale._id,
           return: returnEntry._id,
           client: clientId,
           currency: sale.currency.currencyCode,
-          totalRefundAmount: refundAmount,
+          totalRefundAmount: refundAddition,
           createdBy: userId,
         });
         await refund.save();
       }
     }
-    // Si aucun paiement n'a été effectué, aucun remboursement n'est créé (refund reste null)
+    // Si aucun paiement n'a été effectué ou aucun montant disponible, aucun Refund n'est créé
 
     res.status(201).json({
       msg:
         "Return created successfully" +
-        (refund ? " with refund" : " (no refund created, no payment made)"),
+        (refund
+          ? " with refund"
+          : " (no refund created, no payment made or refund cap reached)"),
       returnEntry,
       refund,
     });
