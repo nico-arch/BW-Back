@@ -88,7 +88,7 @@ app.use("/api/deliveries", deliveryRoutes);
 app.use("/api/payments", paymentRoutes);
 
 app.use("/api/refunds", refundRoutes);
-app.use("api/refundPayments", refundPaymentRoutes);
+app.use("/api/refundPayments", refundPaymentRoutes);
 
 //Utils
 const initRolesAndAdmin = require("./utils/initRolesAndAdmin");
