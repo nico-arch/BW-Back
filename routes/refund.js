@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose"); // Ajouté pour utiliser mongoose.Types.ObjectId
 const router = express.Router();
 const Refund = require("../models/Refund");
 const Return = require("../models/Return");
@@ -145,8 +146,9 @@ router.put("/cancel/:id", authMiddleware, async (req, res) => {
 // Obtenir le refund associé à une vente
 router.get("/sale/:saleId", authMiddleware, async (req, res) => {
   try {
-    // Rechercher un refund dont le champ "sale" correspond à l'ID fourni
-    const refund = await Refund.findOne({ sale: req.params.saleId })
+    // Conversion explicite de l'ID de vente en ObjectId
+    const saleId = mongoose.Types.ObjectId(req.params.saleId);
+    const refund = await Refund.findOne({ sale: saleId })
       .populate("return")
       .populate("client");
     if (!refund) {
@@ -154,8 +156,8 @@ router.get("/sale/:saleId", authMiddleware, async (req, res) => {
     }
     res.json(refund);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ msg: "Server error" });
+    console.error("Error in GET /sale/:saleId", error);
+    res.status(500).json({ msg: "Server error: " + error.message });
   }
 });
 
