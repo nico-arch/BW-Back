@@ -147,7 +147,7 @@ router.put("/cancel/:id", authMiddleware, async (req, res) => {
 router.get("/sale/:saleId", authMiddleware, async (req, res) => {
   try {
     // Conversion explicite de l'ID de vente en ObjectId
-    const saleId = mongoose.Types.ObjectId(req.params.saleId);
+    const saleId = new mongoose.Types.ObjectId(req.params.saleId);
     const refund = await Refund.findOne({ sale: saleId })
       .populate("return")
       .populate("client");
