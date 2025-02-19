@@ -2,6 +2,15 @@ const express = require("express");
 const mongoose = require("mongoose");
 const dotenv = require("dotenv");
 const bcrypt = require("bcryptjs");
+const path = require("path");
+
+// Déterminer le chemin du fichier .env
+const envPath = process.pkg
+  ? path.join(process.cwd(), ".env")
+  : path.join(__dirname, ".env");
+
+// Charger le fichier .env
+dotenv.config({ path: envPath });
 
 const User = require("./models/User");
 const Role = require("./models/Role");
@@ -40,7 +49,7 @@ const paymentRoutes = require("./routes/payment");
 const refundRoutes = require("./routes/refund");
 const refundPaymentRoutes = require("./routes/refundPayment");
 
-dotenv.config();
+//dotenv.config();
 
 const app = express();
 
@@ -110,6 +119,16 @@ initRolesAndAdmin();
 initCurrencies();
 
 //const PORT = process.env["PORT"] || 5000;
-const PORT = 5000;
+//const PORT = 5000;
+const PORT = process.env.PORT || 5000;
+console.log("Port:", process.env.PORT);
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () => {
+  const addressInfo = server.address();
+  let host = addressInfo.address;
+  // Si l'adresse retournée est '::' (IPv6 non spécifiée), on affiche 'localhost'
+  if (host === "::") {
+    host = "localhost";
+  }
+  console.log(`Server running on http://${host}:${addressInfo.port}`);
+});
