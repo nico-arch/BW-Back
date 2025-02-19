@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "bin": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "build-win": "pkg . --target node18-win-x64"
   },
   "keywords": [],
   "author": "",
@@ -19,5 +22,13 @@
     "mongodb": "^6.8.0",
     "mongoose": "^8.5.3",
     "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "assets": [
+      ".env"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
   }
 }
