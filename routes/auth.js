@@ -77,6 +77,8 @@ router.post("/login", async (req, res) => {
     const payload = {
       user: {
         id: user.id, // ou user._id pour MongoDB
+        firstName: user.firstName,
+        lastName: user.lastName,
       },
     };
 
