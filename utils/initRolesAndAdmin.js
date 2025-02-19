@@ -17,7 +17,7 @@ const initRolesAndAdmin = async () => {
       "Cashier",
       "Client",
       "Accountant",
-      "Delivery"
+      "Delivery",
     ];
     const roleIds = []; // Tableau pour stocker les IDs des rôles
 
@@ -35,7 +35,7 @@ const initRolesAndAdmin = async () => {
     if (!admin) {
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(
-        process.env["ADMIN_PASSWORD"],
+        process.env.ADMIN_PASSWORD,
         salt,
       );
 
@@ -43,7 +43,7 @@ const initRolesAndAdmin = async () => {
       await User.create({
         firstName: "Default",
         lastName: "Admin",
-        email: process.env["ADMIN_EMAIL"], // Utiliser l'email de l'administrateur provenant des variables d'environnement
+        email: process.env.ADMIN_EMAIL, // Utiliser l'email de l'administrateur provenant des variables d'environnement
         password: hashedPassword,
         roles: [adminRole._id], // Assigner uniquement le rôle "Admin" par défaut
       });
