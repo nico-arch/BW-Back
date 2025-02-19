@@ -36,11 +36,11 @@ router.post("/add", authMiddleware, async (req, res) => {
     }
 
     // On ne doit pas modifier une vente a credit
-    if (sale.creditSale) {
-      return res
-        .status(400)
-        .json({ msg: "This is a credit sale it cannot be modified" });
-    }
+    //if (sale.creditSale) {
+    //  return res
+    //    .status(400)
+    //    .json({ msg: "This is a credit sale it cannot be modified" });
+    //}
 
     let totalAmount = 0;
     let totalTax = 0;
