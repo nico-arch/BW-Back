@@ -35,6 +35,13 @@ router.post("/add", authMiddleware, async (req, res) => {
       return res.status(400).json({ msg: "Exchange rate not available" });
     }
 
+    // On ne doit pas modifier une vente a credit
+    if (sale.creditSale) {
+      return res
+        .status(400)
+        .json({ msg: "This is a credit sale it cannot be modified" });
+    }
+
     let totalAmount = 0;
     let totalTax = 0;
     let totalDiscount = 0;
@@ -176,8 +183,21 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
     if (!sale) {
       return res.status(404).json({ msg: "Sale not found" });
     }
-    if (sale.saleStatus !== "pending") {
-      return res.status(400).json({ msg: "Only pending sales can be edited" });
+
+    // Vérifier l'existence de paiements pour cette vente
+    const payment = await Payment.find({ sale: sale._id }).lean();
+
+    //console.log("payment lengh:", payment.length);
+    //console.log("payment:", payment);
+
+    if (
+      sale.saleStatus !== "pending" ||
+      sale.creditSale ||
+      payment.length > 0
+    ) {
+      return res.status(400).json({
+        msg: "Only normal pending with no payment and no-credit sales can be edited",
+      });
     }
 
     // Mise à jour du client si nécessaire
@@ -264,13 +284,15 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
 
     // Pour les produits qui étaient dans la vente mais non présents dans la nouvelle liste,
     // remettre leur quantité au stock.
-    for (const [prodId, oldItem] of oldProductsMap) {
+    // Pour les produits qui étaient dans la vente mais non présents dans la nouvelle liste,
+    // remettre leur quantité au stock.
+    /*for (const [prodId, oldItem] of oldProductsMap) {
       const product = await Product.findById(prodId);
       if (product) {
         product.stockQuantity += oldItem.quantity;
         await product.save();
       }
-    }
+    }*/
 
     sale.products = updatedProducts;
     sale.totalAmount = totalAmount;
