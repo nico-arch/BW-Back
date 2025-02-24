@@ -12,6 +12,7 @@ router.post("/add", authMiddleware, async (req, res) => {
     companyName,
     address,
     email,
+	phone,
     website,
     governmentId,
   } = req.body;
@@ -24,6 +25,7 @@ router.post("/add", authMiddleware, async (req, res) => {
       companyName,
       address,
       email,
+	  phone,
       website,
       governmentId,
     });
@@ -44,6 +46,7 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
     companyName,
     address,
     email,
+	phone,
     website,
     governmentId,
   } = req.body;
@@ -54,11 +57,13 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ msg: "Client not found" });
     }
 
+	
     client.firstName = firstName || client.firstName;
     client.lastName = lastName || client.lastName;
     client.companyName = companyName || client.companyName;
     client.address = address || client.address;
     client.email = email || client.email;
+	client.phone = phone || client.phone;
     client.website = website || client.website;
     client.governmentId = governmentId || client.governmentId;
 

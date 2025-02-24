@@ -38,22 +38,28 @@ router.post("/add", authMiddleware, async (req, res) => {
     ]);
     const amountAlreadyPaid =
       totalPaidAgg.length > 0 ? totalPaidAgg[0].totalPaid : 0;
-    const remainingAmount = sale.totalAmount - amountAlreadyPaid;
+	  
+    const remainingAmountDecimal = +sale.totalAmount.toFixed(2) - +amountAlreadyPaid.toFixed(2);
+	const remainingAmount = +remainingAmountDecimal.toFixed(2);
+	//console.log("remainingAmount : "+remainingAmount);
+	
     if (amount > remainingAmount) {
       return res.status(400).json({ msg: "Payment exceeds remaining amount" });
     }
-
+	
+	const amountFixed = +amount.toFixed(2);
+	
     const payment = new Payment({
       sale: sale._id,
       client: client._id,
-      amount,
+	  amount: amountFixed,
       currency,
       paymentType,
       remarks,
       createdBy: userId,
     });
 
-    if (amount === remainingAmount) {
+    if (amountFixed === remainingAmount) {
       sale.saleStatus = "completed";
       sale.completedBy = userId;
       sale.updatedAt = Date.now();
@@ -81,6 +87,8 @@ router.post("/add", authMiddleware, async (req, res) => {
           });
         }
       }
+	  //console.log("remainingAmount : "+remainingAmount);
+	  //console.log("sale :"+sale);
       await sale.save();
     }
 
@@ -170,10 +178,11 @@ router.put("/cancel/:id", authMiddleware, async (req, res) => {
     ]);
     const amountAlreadyPaid =
       totalPaidAgg.length > 0 ? totalPaidAgg[0].totalPaid : 0;
-
+	  
+	  const amountAlreadyPaidFixed = +amountAlreadyPaid.toFixed(2)
     // Mettre à jour le statut de la vente en fonction du montant payé
     sale.saleStatus =
-      amountAlreadyPaid < sale.totalAmount ? "pending" : "completed";
+      amountAlreadyPaidFixed < sale.totalAmount ? "pending" : "completed";
     sale.updatedBy = userId;
     sale.updatedAt = Date.now();
     await sale.save();

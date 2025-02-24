@@ -83,9 +83,9 @@ router.post("/add", authMiddleware, async (req, res) => {
       const discount = (price * item.discount) / 100;
       const total = (price + tax - discount) * item.quantity;
 
-      totalAmount += total;
-      totalTax += tax * item.quantity;
-      totalDiscount += discount * item.quantity;
+      totalAmount += +total.toFixed(2);
+      totalTax += +tax.toFixed(2) * +item.quantity.toFixed(2);
+      totalDiscount += +discount.toFixed(2) * +item.quantity.toFixed(2);
 
       saleProducts.push({
         product: product._id,
@@ -256,9 +256,9 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
       const discount = (price * item.discount) / 100;
       const total = (price + tax - discount) * item.quantity;
 
-      totalAmount += total;
-      totalTax += tax * item.quantity;
-      totalDiscount += discount * item.quantity;
+      totalAmount += +total.toFixed(2);
+      totalTax += +tax.toFixed(2) * +item.quantity.toFixed(2);
+      totalDiscount += +discount.toFixed(2) * +item.quantity.toFixed(2);
 
       if (oldItem) {
         // Mettre à jour l'élément existant

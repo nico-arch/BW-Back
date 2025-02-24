@@ -9,6 +9,7 @@ router.post("/add", authMiddleware, async (req, res) => {
     companyName,
     contacts,
     emails,
+	phone,
     addresses,
     cities,
     countries,
@@ -20,6 +21,7 @@ router.post("/add", authMiddleware, async (req, res) => {
       companyName,
       contacts, // Tableau de contacts avec noms, emails, et téléphones
       emails, // Tableau d'emails pour le fournisseur
+	  phone,
       addresses, // Tableau d'adresses pour le fournisseur
       cities, // Tableau de villes pour le fournisseur
       countries, // Tableau de pays pour le fournisseur
@@ -40,6 +42,7 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
     companyName,
     contacts,
     emails,
+	phone,
     addresses,
     cities,
     countries,
@@ -55,6 +58,7 @@ router.put("/edit/:id", authMiddleware, async (req, res) => {
     supplier.companyName = companyName || supplier.companyName;
     supplier.contacts = contacts || supplier.contacts;
     supplier.emails = emails || supplier.emails;
+	supplier.phone = phone || supplier.phone;
     supplier.addresses = addresses || supplier.addresses;
     supplier.cities = cities || supplier.cities;
     supplier.countries = countries || supplier.countries;

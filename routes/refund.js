@@ -149,7 +149,7 @@ router.get("/sale/:saleId", authMiddleware, async (req, res) => {
     // Conversion explicite de l'ID de vente en ObjectId
     const saleId = new mongoose.Types.ObjectId(req.params.saleId);
     
-    console.log("saleId:", saleId);
+    //console.log("saleId:", saleId);
     
     const refund = await Refund.findOne({ sale: saleId })
       .populate("return")
@@ -157,7 +157,7 @@ router.get("/sale/:saleId", authMiddleware, async (req, res) => {
     if (!refund) {
       return res.status(404).json({ msg: "Refund not found for this sale" });
     }
-    console.log("refund:", refund);
+    //console.log("refund:", refund);
     res.json(refund);
   } catch (error) {
     console.error("Error in GET /sale/:saleId", error);
