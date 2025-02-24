@@ -1,5 +1,5 @@
 {
-  "name": "nodejs",
+  "name": "Lymoner server",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -10,7 +10,7 @@
     "build-win": "pkg . --target node18-win-x64"
   },
   "keywords": [],
-  "author": "",
+  "author": "Nick Anderson Azemar",
   "license": "ISC",
   "dependencies": {
     "@types/node": "^18.0.6",
