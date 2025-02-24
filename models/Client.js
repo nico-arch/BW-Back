@@ -7,6 +7,7 @@ const ClientSchema = new mongoose.Schema({
   companyName: { type: String },
   address: { type: String },
   email: { type: String },
+  phone: { type: String },
   website: { type: String },
   governmentId: { type: String },
   createdAt: { type: Date, default: Date.now },

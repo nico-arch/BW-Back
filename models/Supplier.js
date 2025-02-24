@@ -10,6 +10,7 @@ const SupplierSchema = new mongoose.Schema({
   companyName: { type: String, required: true }, // Nom de l'entreprise du fournisseur
   contacts: [ContactSchema], // Tableau de contacts, chaque contact ayant des emails et plusieurs téléphones
   emails: [{ type: String }], // Tableau d'emails pour le fournisseur
+  phone: { type: String }, // Téléphone principal du fournisseur
   addresses: [{ type: String }], // Tableau d'adresses pour le fournisseur
   cities: [{ type: String }], // Tableau de villes pour le fournisseur
   countries: [{ type: String }], // Tableau de pays pour le fournisseur
