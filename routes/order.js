@@ -360,6 +360,7 @@ router.put("/complete/:id", authMiddleware, async (req, res) => {
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const orders = await Order.find()
+      .sort({ createdAt: -1 }) // Tri décroissant par date de création
       .populate("supplier")
       .populate("products.product");
     res.json(orders);

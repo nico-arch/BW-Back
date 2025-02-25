@@ -63,6 +63,7 @@ router.get("/", authMiddleware, async (req, res) => {
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const refund = await Refund.findById(req.params.id)
+      .sort({ createdAt: -1 }) // Tri décroissant par date de création
       .populate("return")
       .populate("client");
     if (!refund) {
@@ -148,9 +149,9 @@ router.get("/sale/:saleId", authMiddleware, async (req, res) => {
   try {
     // Conversion explicite de l'ID de vente en ObjectId
     const saleId = new mongoose.Types.ObjectId(req.params.saleId);
-    
+
     //console.log("saleId:", saleId);
-    
+
     const refund = await Refund.findOne({ sale: saleId })
       .populate("return")
       .populate("client");

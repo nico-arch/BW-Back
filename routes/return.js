@@ -174,6 +174,7 @@ router.post("/add", authMiddleware, async (req, res) => {
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const returns = await Return.find()
+      .sort({ createdAt: -1 }) // Tri décroissant par date de création
       .populate("sale")
       .populate("client")
       .populate("products.product");
@@ -188,6 +189,7 @@ router.get("/", authMiddleware, async (req, res) => {
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const returnEntry = await Return.findById(req.params.id)
+      .sort({ createdAt: -1 }) // Tri décroissant par date de création
       .populate("sale")
       .populate("client")
       .populate("products.product");
@@ -346,6 +348,7 @@ router.put("/cancel/:id", authMiddleware, async (req, res) => {
 router.get("/sale/:saleId", authMiddleware, async (req, res) => {
   try {
     const returns = await Return.find({ sale: req.params.saleId })
+    .sort({ createdAt: -1 }) // Tri décroissant par date de création
       .populate("sale")
       .populate("client")
       .populate("products.product")

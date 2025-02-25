@@ -38,17 +38,17 @@ router.post("/add", authMiddleware, async (req, res) => {
     ]);
     const amountAlreadyPaid =
       totalPaidAgg.length > 0 ? totalPaidAgg[0].totalPaid : 0;
-	  
+
     const remainingAmountDecimal = +sale.totalAmount.toFixed(2) - +amountAlreadyPaid.toFixed(2);
 	const remainingAmount = +remainingAmountDecimal.toFixed(2);
 	//console.log("remainingAmount : "+remainingAmount);
-	
+
     if (amount > remainingAmount) {
       return res.status(400).json({ msg: "Payment exceeds remaining amount" });
     }
-	
+
 	const amountFixed = +amount.toFixed(2);
-	
+
     const payment = new Payment({
       sale: sale._id,
       client: client._id,
@@ -104,6 +104,7 @@ router.post("/add", authMiddleware, async (req, res) => {
 router.get("/", authMiddleware, async (req, res) => {
   try {
     const payments = await Payment.find()
+      .sort({ createdAt: -1 }) // Tri décroissant par date de création
       .populate("sale", "_id totalAmount")
       .populate("client", "firstName lastName")
       .populate("createdBy", "firstName lastName");
@@ -118,6 +119,7 @@ router.get("/", authMiddleware, async (req, res) => {
 router.get("/sale/:saleId", authMiddleware, async (req, res) => {
   try {
     const payments = await Payment.find({ sale: req.params.saleId })
+      .sort({ createdAt: -1 }) // Tri décroissant par date de création
       .populate("sale", "_id totalAmount")
       .populate("client", "firstName lastName")
       .populate("createdBy", "firstName lastName");
@@ -178,7 +180,7 @@ router.put("/cancel/:id", authMiddleware, async (req, res) => {
     ]);
     const amountAlreadyPaid =
       totalPaidAgg.length > 0 ? totalPaidAgg[0].totalPaid : 0;
-	  
+
 	  const amountAlreadyPaidFixed = +amountAlreadyPaid.toFixed(2)
     // Mettre à jour le statut de la vente en fonction du montant payé
     sale.saleStatus =

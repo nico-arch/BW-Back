@@ -69,6 +69,7 @@ router.get("/:refundId", authMiddleware, async (req, res) => {
 
     // Récupérer les paiements associés
     const payments = await RefundPayment.find({ refund: req.params.refundId })
+      .sort({ createdAt: -1 }) // Tri décroissant par date de création
       .populate("refund", "totalRefundAmount refundStatus")
       .populate("processedBy", "firstName lastName");
 

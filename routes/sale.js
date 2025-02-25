@@ -126,6 +126,7 @@ router.post("/add", authMiddleware, async (req, res) => {
 router.get("/", authMiddleware, async (req, res) => {
   try {
     let sales = await Sale.find()
+      .sort({ createdAt: -1 }) // Tri décroissant par date de création
       .populate("client")
       .populate("products.product")
       .populate("currency")
