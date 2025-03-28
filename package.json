@@ -6,6 +6,7 @@
   "bin": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon index.js",
     "start": "node index.js",
     "build-win": "pkg . --target node18-win-x64"
   },
@@ -21,6 +22,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.8.0",
     "mongoose": "^8.5.3",
+    "nodemon": "^3.1.9",
     "pkg": "^5.8.1"
   },
   "pkg": {

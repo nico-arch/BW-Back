@@ -5,6 +5,7 @@ const ProductSchema = new mongoose.Schema({
   description: { type: String },
   //barcode: { type: String },
   barcode: { type: String, unique: true }, // Champ barcode ajouté
+  purchasePrice: { type: Number, required: false }, // Nouveau champ pour le prix d'achat
   priceUSD: { type: Number, required: true }, // Prix en dollars
   priceHTG: { type: Number, required: false }, // Prix en gourdes (calculé dynamiquement)
   currency: { type: String, enum: ["USD", "HTG"], default: "USD" }, // Devise principale

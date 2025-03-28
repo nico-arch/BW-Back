@@ -302,6 +302,7 @@ router.put("/complete/:id", authMiddleware, async (req, res) => {
       const product = await Product.findById(item.product._id);
       if (product) {
         product.priceUSD = item.salePrice; // Appliquer le prix de vente
+        product.purchasePrice = item.purchasePrice;    // Mettre à jour le prix d'achat
         product.stockQuantity += item.quantity; // Ajouter au stock
         await product.save();
       }
